@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Scheduler</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(function(OneSignal) {
+        OneSignal.init({
+          appId: "YOUR_ONE_SIGNAL_APP_ID", // <-- PASTE YOUR ONESIGNAL APP ID HERE
+        });
+      });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Schedule a Notification</h1>
+        <p>Set a message and a future time. The notification will be sent even if this page is closed.</p>
+        <form id="schedule-form">
+            <div class="form-group">
+                <label for="message">Notification Message:</label>
+                <input type="text" id="message" name="message" placeholder="e.g., Time for the meeting" required>
+            </div>
+            <div class="form-group">
+                <label for="schedule-time">Time to Send:</label>
+                <input type="datetime-local" id="schedule-time" name="schedule-time" required>
+            </div>
+            <button type="submit">Schedule Notification</button>
+        </form>
+        <div id="response-message"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
