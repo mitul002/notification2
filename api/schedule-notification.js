@@ -1,26 +1,39 @@
-// Test version - sends immediate notification
+// Vercel Serverless Function
+// This code will run on a Node.js environment on Vercel's servers.
+
 export default async function handler(request, response) {
+    // Allow only POST requests
     if (request.method !== 'POST') {
         return response.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { message } = request.body;
+    const { message, scheduleTime } = request.body;
 
-    if (!message) {
-        return response.status(400).json({ error: 'Message is required.' });
+    if (!message || !scheduleTime) {
+        return response.status(400).json({ error: 'Message and scheduleTime are required.' });
     }
 
     const ONE_SIGNAL_APP_ID = "ead62052-c065-4208-af7f-26372838c61d";
-    const ONE_SIGNAL_REST_API_KEY = "lqdi7k3upuo4ediitxwkfyjy3";
+    const ONE_SIGNAL_REST_API_KEY = "os_v2_app_5llcauwamvbarl37ey3sqoggdwwfur6bwyuuccnzobieer7tvdfznf6kdlxqrgatow27hlcarmpaakt6yqf3dowh557vkxx3rg3octa";
+
+    if (!ONE_SIGNAL_APP_ID || !ONE_SIGNAL_REST_API_KEY) {
+        return response.status(500).json({ error: 'OneSignal environment variables are not configured.' });
+    }
+
+    // Convert the scheduleTime to proper ISO format
+    const scheduleDate = new Date(scheduleTime);
+    const isoScheduleTime = scheduleDate.toISOString();
+
+    // Log for debugging (remove in production)
+    console.log('Scheduling notification for:', isoScheduleTime);
+    console.log('Message:', message);
 
     const body = {
         app_id: ONE_SIGNAL_APP_ID,
         contents: { en: message },
-        included_segments: ['All'], // Try 'All' instead of 'Subscribed Users'
+        included_segments: ['Subscribed Users'],
+        send_after: isoScheduleTime,
     };
-
-    console.log('Sending to OneSignal:', JSON.stringify(body, null, 2));
-    console.log('Using API Key:', ONE_SIGNAL_REST_API_KEY);
 
     try {
         const onesignalResponse = await fetch('https://onesignal.com/api/v1/notifications', {
@@ -33,21 +46,13 @@ export default async function handler(request, response) {
         });
 
         const data = await onesignalResponse.json();
-        
-        console.log('OneSignal response status:', onesignalResponse.status);
-        console.log('OneSignal response data:', JSON.stringify(data, null, 2));
 
         if (onesignalResponse.ok) {
             response.status(200).json({ success: true, data });
         } else {
-            response.status(onesignalResponse.status).json({ 
-                error: 'Failed to send notification to OneSignal.', 
-                details: data,
-                status: onesignalResponse.status 
-            });
+            response.status(onesignalResponse.status).json({ error: 'Failed to send notification to OneSignal.', details: data });
         }
     } catch (error) {
-        console.error('Fetch error:', error);
         response.status(500).json({ error: 'An internal error occurred.', details: error.message });
     }
 }
