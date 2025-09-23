@@ -1,16 +1,13 @@
-// Vercel Serverless Function
-// This code will run on a Node.js environment on Vercel's servers.
-
+// Test version - schedules notification 2 minutes from now
 export default async function handler(request, response) {
-    // Allow only POST requests
     if (request.method !== 'POST') {
         return response.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { message, scheduleTime } = request.body;
+    const { message } = request.body;
 
-    if (!message || !scheduleTime) {
-        return response.status(400).json({ error: 'Message and scheduleTime are required.' });
+    if (!message) {
+        return response.status(400).json({ error: 'Message is required.' });
     }
 
     const ONE_SIGNAL_APP_ID = process.env.ONE_SIGNAL_APP_ID;
@@ -20,19 +17,27 @@ export default async function handler(request, response) {
         return response.status(500).json({ error: 'OneSignal environment variables are not configured.' });
     }
 
-    // Convert the scheduleTime to proper ISO format
-    const scheduleDate = new Date(scheduleTime);
-    const isoScheduleTime = scheduleDate.toISOString();
+    // Schedule for 2 minutes from now for testing
+    const scheduleDate = new Date();
+    scheduleDate.setMinutes(scheduleDate.getMinutes() + 2);
+    
+    // OneSignal expects format like "2024-09-25 14:30:00 GMT+0000"
+    const year = scheduleDate.getUTCFullYear();
+    const month = String(scheduleDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(scheduleDate.getUTCDate()).padStart(2, '0');
+    const hours = String(scheduleDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(scheduleDate.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(scheduleDate.getUTCSeconds()).padStart(2, '0');
+    
+    const formattedScheduleTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds} GMT+0000`;
 
-    // Log for debugging (remove in production)
-    console.log('Scheduling notification for:', isoScheduleTime);
-    console.log('Message:', message);
+    console.log('Scheduling for 2 minutes from now:', formattedScheduleTime);
 
     const body = {
         app_id: ONE_SIGNAL_APP_ID,
         contents: { en: message },
         included_segments: ['Subscribed Users'],
-        send_after: isoScheduleTime,
+        send_after: formattedScheduleTime,
     };
 
     try {
@@ -46,11 +51,20 @@ export default async function handler(request, response) {
         });
 
         const data = await onesignalResponse.json();
+        
+        console.log('OneSignal response:', data);
 
         if (onesignalResponse.ok) {
-            response.status(200).json({ success: true, data });
+            response.status(200).json({ 
+                success: true, 
+                data,
+                scheduledFor: formattedScheduleTime
+            });
         } else {
-            response.status(onesignalResponse.status).json({ error: 'Failed to send notification to OneSignal.', details: data });
+            response.status(onesignalResponse.status).json({ 
+                error: 'Failed to send notification to OneSignal.', 
+                details: data 
+            });
         }
     } catch (error) {
         response.status(500).json({ error: 'An internal error occurred.', details: error.message });
