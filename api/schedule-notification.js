@@ -1,50 +1,53 @@
-// Vercel Serverless Function
-// This code will run on a Node.js environment on Vercel's servers.
-
+// Test version - sends immediate notification
 export default async function handler(request, response) {
-    // Allow only POST requests
     if (request.method !== 'POST') {
         return response.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { message, scheduleTime } = request.body;
+    const { message } = request.body;
 
-    if (!message || !scheduleTime) {
-        return response.status(400).json({ error: 'Message and scheduleTime are required.' });
+    if (!message) {
+        return response.status(400).json({ error: 'Message is required.' });
     }
 
     const ONE_SIGNAL_APP_ID = "ead62052-c065-4208-af7f-26372838c61d";
     const ONE_SIGNAL_REST_API_KEY = "lqdi7k3upuo4ediitxwkfyjy3";
 
-    if (!ONE_SIGNAL_APP_ID || !ONE_SIGNAL_REST_API_KEY) {
-        return response.status(500).json({ error: 'OneSignal environment variables are not configured.' });
-    }
-
     const body = {
         app_id: ONE_SIGNAL_APP_ID,
         contents: { en: message },
-        included_segments: ['Subscribed Users'],
-        send_after: scheduleTime,
+        included_segments: ['All'], // Try 'All' instead of 'Subscribed Users'
     };
+
+    console.log('Sending to OneSignal:', JSON.stringify(body, null, 2));
+    console.log('Using API Key:', ONE_SIGNAL_REST_API_KEY);
 
     try {
         const onesignalResponse = await fetch('https://onesignal.com/api/v1/notifications', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${ONE_SIGNAL_REST_API_KEY}`,
+                'Authorization': `Key ${ONE_SIGNAL_REST_API_KEY}`,
             },
             body: JSON.stringify(body),
         });
 
         const data = await onesignalResponse.json();
+        
+        console.log('OneSignal response status:', onesignalResponse.status);
+        console.log('OneSignal response data:', JSON.stringify(data, null, 2));
 
         if (onesignalResponse.ok) {
             response.status(200).json({ success: true, data });
         } else {
-            response.status(onesignalResponse.status).json({ error: 'Failed to send notification to OneSignal.', details: data });
+            response.status(onesignalResponse.status).json({ 
+                error: 'Failed to send notification to OneSignal.', 
+                details: data,
+                status: onesignalResponse.status 
+            });
         }
     } catch (error) {
+        console.error('Fetch error:', error);
         response.status(500).json({ error: 'An internal error occurred.', details: error.message });
     }
 }
