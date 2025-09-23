@@ -12,13 +12,15 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
 
         const message = document.getElementById('message').value;
-        const scheduleTime = document.getElementById('schedule-time').value;
+        const scheduleTimeValue = document.getElementById('schedule-time').value;
 
-        if (!message || !scheduleTime) {
+        if (!message || !scheduleTimeValue) {
             responseMessage.textContent = 'Please fill out both fields.';
             responseMessage.style.color = 'red';
             return;
         }
+
+        const scheduleTime = new Date(scheduleTimeValue).toString();
 
         responseMessage.textContent = 'Scheduling...';
         responseMessage.style.color = '#333';
@@ -43,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 scheduleForm.reset();
                 document.getElementById('schedule-time').min = nowString;
             } else {
-                throw new Error(result.error || 'Failed to schedule notification.');
+                throw new Error(result.error ? `${result.error} Details: ${JSON.stringify(result.details)}` : 'Failed to schedule notification.');
             }
         } catch (error) {
             responseMessage.textContent = `Error: ${error.message}`;
