@@ -1,13 +1,16 @@
-// Test version - schedules notification 2 minutes from now
+// Vercel Serverless Function
+// This code will run on a Node.js environment on Vercel's servers.
+
 export default async function handler(request, response) {
+    // Allow only POST requests
     if (request.method !== 'POST') {
         return response.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { message } = request.body;
+    const { message, scheduleTime } = request.body;
 
-    if (!message) {
-        return response.status(400).json({ error: 'Message is required.' });
+    if (!message || !scheduleTime) {
+        return response.status(400).json({ error: 'Message and scheduleTime are required.' });
     }
 
     const ONE_SIGNAL_APP_ID = process.env.ONE_SIGNAL_APP_ID;
@@ -17,9 +20,8 @@ export default async function handler(request, response) {
         return response.status(500).json({ error: 'OneSignal environment variables are not configured.' });
     }
 
-    // Schedule for 2 minutes from now for testing
-    const scheduleDate = new Date();
-    scheduleDate.setMinutes(scheduleDate.getMinutes() + 2);
+    // Convert the scheduleTime to OneSignal's expected format
+    const scheduleDate = new Date(scheduleTime);
     
     // OneSignal expects format like "2024-09-25 14:30:00 GMT+0000"
     const year = scheduleDate.getUTCFullYear();
@@ -31,7 +33,10 @@ export default async function handler(request, response) {
     
     const formattedScheduleTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds} GMT+0000`;
 
-    console.log('Scheduling for 2 minutes from now:', formattedScheduleTime);
+    // Log for debugging
+    console.log('Original schedule time:', scheduleTime);
+    console.log('Formatted schedule time:', formattedScheduleTime);
+    console.log('Message:', message);
 
     const body = {
         app_id: ONE_SIGNAL_APP_ID,
@@ -51,20 +56,11 @@ export default async function handler(request, response) {
         });
 
         const data = await onesignalResponse.json();
-        
-        console.log('OneSignal response:', data);
 
         if (onesignalResponse.ok) {
-            response.status(200).json({ 
-                success: true, 
-                data,
-                scheduledFor: formattedScheduleTime
-            });
+            response.status(200).json({ success: true, data });
         } else {
-            response.status(onesignalResponse.status).json({ 
-                error: 'Failed to send notification to OneSignal.', 
-                details: data 
-            });
+            response.status(onesignalResponse.status).json({ error: 'Failed to send notification to OneSignal.', details: data });
         }
     } catch (error) {
         response.status(500).json({ error: 'An internal error occurred.', details: error.message });
