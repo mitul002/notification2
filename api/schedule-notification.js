@@ -2,6 +2,7 @@
 // This code will run on a Node.js environment on Vercel's servers.
 
 export default async function handler(request, response) {
+    console.log('OneSignal REST API Key:', process.env.ONE_SIGNAL_REST_API_KEY);
     // Allow only POST requests
     if (request.method !== 'POST') {
         return response.status(405).json({ error: 'Method Not Allowed' });
