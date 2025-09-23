@@ -33,7 +33,7 @@ export default async function handler(request, response) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `key ${ONE_SIGNAL_REST_API_KEY}`,     
+                'Authorization': `key = ${ONE_SIGNAL_REST_API_KEY}`,     
             },
             body: JSON.stringify(body),
         });
