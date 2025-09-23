@@ -14,8 +14,8 @@ export default async function handler(request, response) {
         return response.status(400).json({ error: 'Message and scheduleTime are required.' });
     }
 
-    const ONE_SIGNAL_APP_ID = process.env.ONE_SIGNAL_APP_ID;
-    const ONE_SIGNAL_REST_API_KEY = process.env.ONE_SIGNAL_REST_API_KEY;
+    const ONE_SIGNAL_APP_ID = "ead62052-c065-4208-af7f-26372838c61d"; 
+    const ONE_SIGNAL_REST_API_KEY = "lqdi7k3upuo4ediitxwkfyjy3"; 
 
     if (!ONE_SIGNAL_APP_ID || !ONE_SIGNAL_REST_API_KEY) {
         return response.status(500).json({ error: 'OneSignal environment variables are not configured.' });
