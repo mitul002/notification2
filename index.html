@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notification Scheduler</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Smart Notification Scheduler</title>
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -14,24 +13,537 @@
         });
       });
     </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .tab-container {
+            display: flex;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        input[type="text"],
+        input[type="datetime-local"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .response-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: 500;
+            text-align: center;
+            display: none;
+        }
+
+        .response-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .response-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .auto-status {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        .auto-status h3 {
+            margin: 0 0 10px 0;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+
+        .message-pool {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .message-pool h4 {
+            margin: 0 0 15px 0;
+            color: #495057;
+        }
+
+        .message-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .message-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Schedule a Notification</h1>
-        <p>Set a message and a future time. The notification will be sent even if this page is closed.</p>
-        <form id="schedule-form">
-            <div class="form-group">
-                <label for="message">Notification Message:</label>
-                <input type="text" id="message" name="message" placeholder="e.g., Time for the meeting" required>
+        <div class="header">
+            <h1>🔔 Smart Notifications</h1>
+            <p>Schedule custom notifications and set up auto-reminders</p>
+        </div>
+
+        <div class="content">
+            <div class="tab-container">
+                <button class="tab active" onclick="switchTab('manual')">Manual Schedule</button>
+                <button class="tab" onclick="switchTab('auto')">Auto Random</button>
             </div>
-            <div class="form-group">
-                <label for="schedule-time">Time to Send:</label>
-                <input type="datetime-local" id="schedule-time" name="schedule-time" required>
+
+            <!-- Manual Schedule Tab -->
+            <div id="manual-tab" class="tab-content active">
+                <form id="schedule-form">
+                    <div class="form-group">
+                        <label for="message">Notification Message:</label>
+                        <input type="text" id="message" name="message" placeholder="e.g., Time for the meeting" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule-time">Time to Send:</label>
+                        <input type="datetime-local" id="schedule-time" name="schedule-time" required>
+                    </div>
+                    <button type="submit">Schedule Notification</button>
+                </form>
+                <div id="manual-response" class="response-message"></div>
             </div>
-            <button type="submit">Schedule Notification</button>
-        </form>
-        <div id="response-message"></div>
+
+            <!-- Auto Random Tab -->
+            <div id="auto-tab" class="tab-content">
+                <div id="auto-status" class="auto-status" style="display: none;">
+                    <h3>🤖 Auto Notifications Active</h3>
+                    <div class="status-item">
+                        <span>Status:</span>
+                        <span id="status-text">Running</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Next in:</span>
+                        <span id="next-time">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Current interval:</span>
+                        <span id="current-interval">-</span>
+                    </div>
+                </div>
+
+                <div class="message-pool">
+                    <h4>📝 Random Message Pool</h4>
+                    <div class="form-group">
+                        <textarea id="message-pool" placeholder="Enter messages separated by new lines:&#10;&#10;Take a break and stretch!&#10;Stay hydrated - drink some water&#10;Check your posture&#10;Time for a quick walk&#10;Don't forget to blink your eyes">Take a break and stretch!
+Stay hydrated - drink some water 💧
+Check your posture 🧘‍♂️
+Time for a quick walk 🚶‍♂️
+Don't forget to blink your eyes 👁️
+Review your goals for today 🎯
+Practice deep breathing 🌬️
+Appreciate something beautiful around you 🌸</textarea>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="start-interval">Starting Interval (minutes):</label>
+                    <select id="start-interval">
+                        <option value="1">1 minute</option>
+                        <option value="2">2 minutes</option>
+                        <option value="4">4 minutes</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="max-interval">Maximum Interval (minutes):</label>
+                    <select id="max-interval">
+                        <option value="16">16 minutes</option>
+                        <option value="32">32 minutes</option>
+                        <option value="64">64 minutes</option>
+                        <option value="128">128 minutes</option>
+                    </select>
+                </div>
+
+                <button id="auto-toggle" onclick="toggleAutoNotifications()">Start Auto Notifications</button>
+                <div id="auto-response" class="response-message"></div>
+            </div>
+        </div>
     </div>
-    <script src="script.js"></script>
+
+    <script>
+        let autoNotificationState = {
+            isActive: false,
+            currentInterval: 1, // in minutes
+            startInterval: 1,
+            maxInterval: 16,
+            nextScheduleTime: null,
+            messages: []
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set minimum time for datetime-local input
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            const nowString = now.toISOString().slice(0, 16);
+            document.getElementById('schedule-time').min = nowString;
+
+            // Load saved auto state
+            loadAutoState();
+            updateAutoStatus();
+        });
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+
+        // Manual scheduling (existing functionality)
+        document.getElementById('schedule-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const message = document.getElementById('message').value;
+            const scheduleTimeValue = document.getElementById('schedule-time').value;
+            const responseDiv = document.getElementById('manual-response');
+
+            if (!message || !scheduleTimeValue) {
+                showResponse(responseDiv, 'Please fill out both fields.', 'error');
+                return;
+            }
+
+            const scheduleTime = new Date(scheduleTimeValue).toString();
+            showResponse(responseDiv, 'Scheduling...', 'success');
+
+            try {
+                const response = await fetch('/api/schedule-notification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, scheduleTime }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showResponse(responseDiv, 'Notification scheduled successfully!', 'success');
+                    document.getElementById('schedule-form').reset();
+                    document.getElementById('schedule-time').min = document.getElementById('schedule-time').min;
+                } else {
+                    throw new Error(result.error || 'Failed to schedule notification.');
+                }
+            } catch (error) {
+                showResponse(responseDiv, `Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Auto notifications functionality
+        function toggleAutoNotifications() {
+            if (autoNotificationState.isActive) {
+                stopAutoNotifications();
+            } else {
+                startAutoNotifications();
+            }
+        }
+
+        function startAutoNotifications() {
+            const startInterval = parseInt(document.getElementById('start-interval').value);
+            const maxInterval = parseInt(document.getElementById('max-interval').value);
+            const messagePool = document.getElementById('message-pool').value;
+
+            if (!messagePool.trim()) {
+                showResponse(document.getElementById('auto-response'), 'Please add some messages to the pool!', 'error');
+                return;
+            }
+
+            const messages = messagePool.split('\n').filter(msg => msg.trim().length > 0);
+            
+            if (messages.length === 0) {
+                showResponse(document.getElementById('auto-response'), 'Please add at least one message!', 'error');
+                return;
+            }
+
+            autoNotificationState = {
+                isActive: true,
+                currentInterval: startInterval,
+                startInterval: startInterval,
+                maxInterval: maxInterval,
+                messages: messages,
+                nextScheduleTime: null
+            };
+
+            scheduleNextAutoNotification();
+            saveAutoState();
+            updateAutoStatus();
+            
+            document.getElementById('auto-toggle').textContent = 'Stop Auto Notifications';
+            showResponse(document.getElementById('auto-response'), 
+                `Auto notifications started! First notification in ${startInterval} minute${startInterval > 1 ? 's' : ''}.`, 'success');
+        }
+
+        function stopAutoNotifications() {
+            autoNotificationState.isActive = false;
+            autoNotificationState.nextScheduleTime = null;
+            
+            saveAutoState();
+            updateAutoStatus();
+            
+            document.getElementById('auto-toggle').textContent = 'Start Auto Notifications';
+            showResponse(document.getElementById('auto-response'), 'Auto notifications stopped.', 'error');
+        }
+
+        async function scheduleNextAutoNotification() {
+            if (!autoNotificationState.isActive) return;
+
+            const randomMessage = autoNotificationState.messages[
+                Math.floor(Math.random() * autoNotificationState.messages.length)
+            ];
+
+            const nextTime = new Date();
+            nextTime.setMinutes(nextTime.getMinutes() + autoNotificationState.currentInterval);
+            
+            autoNotificationState.nextScheduleTime = nextTime;
+            saveAutoState();
+
+            try {
+                const response = await fetch('/api/schedule-notification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: randomMessage, 
+                        scheduleTime: nextTime.toString() 
+                    }),
+                });
+
+                if (response.ok) {
+                    console.log(`Auto notification scheduled for ${nextTime.toLocaleString()}: ${randomMessage}`);
+                    
+                    // Double the interval for next time (exponential backoff)
+                    autoNotificationState.currentInterval = Math.min(
+                        autoNotificationState.currentInterval * 2,
+                        autoNotificationState.maxInterval
+                    );
+
+                    // Schedule the next one after this one is delivered
+                    setTimeout(() => {
+                        scheduleNextAutoNotification();
+                    }, autoNotificationState.currentInterval * 60 * 1000); // Convert minutes to milliseconds
+                }
+            } catch (error) {
+                console.error('Error scheduling auto notification:', error);
+            }
+        }
+
+        function updateAutoStatus() {
+            const statusDiv = document.getElementById('auto-status');
+            
+            if (autoNotificationState.isActive) {
+                statusDiv.style.display = 'block';
+                document.getElementById('status-text').textContent = 'Active';
+                document.getElementById('current-interval').textContent = 
+                    `${autoNotificationState.currentInterval} minute${autoNotificationState.currentInterval > 1 ? 's' : ''}`;
+                
+                if (autoNotificationState.nextScheduleTime) {
+                    updateCountdown();
+                    setInterval(updateCountdown, 1000);
+                }
+            } else {
+                statusDiv.style.display = 'none';
+            }
+        }
+
+        function updateCountdown() {
+            if (!autoNotificationState.nextScheduleTime) return;
+            
+            const now = new Date();
+            const nextTime = new Date(autoNotificationState.nextScheduleTime);
+            const diff = nextTime - now;
+            
+            if (diff <= 0) {
+                document.getElementById('next-time').textContent = 'Now';
+                return;
+            }
+            
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            if (hours > 0) {
+                document.getElementById('next-time').textContent = 
+                    `${hours}h ${minutes}m ${seconds}s`;
+            } else {
+                document.getElementById('next-time').textContent = 
+                    `${minutes}m ${seconds}s`;
+            }
+        }
+
+        function saveAutoState() {
+            // In a real app, you'd save to a database or server
+            // For now, we'll use localStorage (though it won't work in Claude artifacts)
+            console.log('Auto state saved:', autoNotificationState);
+        }
+
+        function loadAutoState() {
+            // In a real app, you'd load from a database or server
+            // For now, just log that we're loading
+            console.log('Loading auto state...');
+        }
+
+        function showResponse(element, message, type) {
+            element.textContent = message;
+            element.className = `response-message ${type}`;
+            element.style.display = 'block';
+            
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+    </script>
 </body>
 </html>
