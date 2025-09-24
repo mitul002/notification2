@@ -16,20 +16,18 @@ export default async function handler(request, response) {
         return response.status(500).json({ error: 'OneSignal environment variables are not configured.' });
     }
 
-    // Current time for reference
     const now = new Date();
     const scheduleDate = new Date(scheduleTime);
     
-    console.log('=== SCHEDULING DEBUG ===');
+    console.log('=== SCHEDULE TEST ===');
     console.log('Current time:', now.toISOString());
     console.log('Schedule time:', scheduleDate.toISOString());
+    console.log('Minutes from now:', Math.round((scheduleDate - now) / (1000 * 60)));
 
     // Check if schedule time is in the future
     if (scheduleDate <= now) {
         return response.status(400).json({ 
             error: 'Schedule time must be in the future',
-            currentTime: now.toISOString(),
-            scheduleTime: scheduleDate.toISOString()
         });
     }
 
@@ -44,67 +42,15 @@ export default async function handler(request, response) {
 
     console.log('Formatted schedule time:', formattedScheduleTime);
 
-    // Try different targeting approaches
-    const targetingOptions = [
-        { included_segments: ['All'] },
-        { included_segments: ['Active Users'] },
-        { included_segments: ['Subscribed Users'] },
-        { included_segments: ['Engaged Users'] }
-    ];
-
-    for (let i = 0; i < targetingOptions.length; i++) {
-        console.log(`\n=== ATTEMPT ${i + 1}: Testing with targeting:`, targetingOptions[i]);
-        
-        const body = {
-            app_id: ONE_SIGNAL_APP_ID,
-            contents: { en: `${message} (Test ${i + 1})` },
-            ...targetingOptions[i],
-            send_after: formattedScheduleTime,
-        };
-
-        try {
-            const onesignalResponse = await fetch('https://onesignal.com/api/v1/notifications', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Key ${ONE_SIGNAL_REST_API_KEY}`,
-                },
-                body: JSON.stringify(body),
-            });
-
-            const data = await onesignalResponse.json();
-            
-            console.log(`Response ${i + 1} status:`, onesignalResponse.status);
-            console.log(`Response ${i + 1} data:`, JSON.stringify(data, null, 2));
-
-            if (onesignalResponse.ok && data.id) {
-                console.log(`✅ SUCCESS with targeting option ${i + 1}:`, targetingOptions[i]);
-                console.log('Notification ID:', data.id);
-                
-                return response.status(200).json({ 
-                    success: true, 
-                    data,
-                    successfulTargeting: targetingOptions[i],
-                    notificationId: data.id,
-                    scheduledFor: formattedScheduleTime
-                });
-            } else if (onesignalResponse.ok) {
-                console.log(`⚠️ API call succeeded but no notification ID returned for option ${i + 1}`);
-                console.log('This usually means no users match the targeting criteria');
-            }
-        } catch (error) {
-            console.error(`❌ Error with targeting option ${i + 1}:`, error);
-        }
-    }
-
-    // If all targeting options failed, try immediate notification to test if you have any subscribers
-    console.log('\n=== TESTING IMMEDIATE NOTIFICATION ===');
+    // Test 1: Send immediate notification (to confirm API works)
+    console.log('\n=== TEST 1: IMMEDIATE NOTIFICATION ===');
     const immediateBody = {
         app_id: ONE_SIGNAL_APP_ID,
-        contents: { en: 'Test immediate notification - checking for subscribers' },
+        contents: { en: `Immediate: ${message}` },
         included_segments: ['All']
     };
 
+    let immediateResult = null;
     try {
         const immediateResponse = await fetch('https://onesignal.com/api/v1/notifications', {
             method: 'POST',
@@ -115,28 +61,80 @@ export default async function handler(request, response) {
             body: JSON.stringify(immediateBody),
         });
 
-        const immediateData = await immediateResponse.json();
-        console.log('Immediate notification response:', JSON.stringify(immediateData, null, 2));
-
-        if (immediateData.id) {
-            console.log('✅ You have subscribers! The issue is with scheduled notifications specifically');
-        } else {
-            console.log('❌ No immediate notification sent either - you might have no subscribers');
-        }
+        immediateResult = await immediateResponse.json();
+        console.log('Immediate notification result:', JSON.stringify(immediateResult, null, 2));
     } catch (error) {
-        console.error('Error testing immediate notification:', error);
+        console.error('Immediate notification error:', error);
     }
 
-    // Return the information about what we found
-    return response.status(200).json({ 
-        success: false,
-        message: 'Notification API calls succeeded but no notification ID returned',
-        possibleReasons: [
-            'No users subscribed to receive notifications',
-            'Selected segment has no users',
-            'OneSignal configuration issue',
-            'Scheduled notifications might not be available for your plan'
-        ],
-        suggestion: 'Check OneSignal Dashboard > Audience to see if you have any subscribers'
-    });
+    // Test 2: Send scheduled notification
+    console.log('\n=== TEST 2: SCHEDULED NOTIFICATION ===');
+    const scheduledBody = {
+        app_id: ONE_SIGNAL_APP_ID,
+        contents: { en: `Scheduled: ${message}` },
+        included_segments: ['All'],
+        send_after: formattedScheduleTime,
+    };
+
+    console.log('Scheduled request body:', JSON.stringify(scheduledBody, null, 2));
+
+    try {
+        const scheduledResponse = await fetch('https://onesignal.com/api/v1/notifications', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Key ${ONE_SIGNAL_REST_API_KEY}`,
+            },
+            body: JSON.stringify(scheduledBody),
+        });
+
+        const scheduledResult = await scheduledResponse.json();
+        
+        console.log('Scheduled notification status:', scheduledResponse.status);
+        console.log('Scheduled notification result:', JSON.stringify(scheduledResult, null, 2));
+
+        if (scheduledResponse.ok) {
+            if (scheduledResult.id) {
+                console.log('✅ SCHEDULED notification created with ID:', scheduledResult.id);
+                
+                // Check if it's actually scheduled by looking at the response
+                if (scheduledResult.send_after) {
+                    console.log('✅ Confirmation: send_after field present:', scheduledResult.send_after);
+                } else {
+                    console.log('⚠️ Warning: No send_after field in response, might be sent immediately');
+                }
+                
+                response.status(200).json({ 
+                    success: true, 
+                    scheduledNotificationId: scheduledResult.id,
+                    immediateNotificationId: immediateResult?.id,
+                    scheduledFor: formattedScheduleTime,
+                    scheduledResponse: scheduledResult,
+                    message: 'Both notifications created. Check OneSignal dashboard and wait for scheduled time.'
+                });
+            } else {
+                console.log('⚠️ Scheduled API call succeeded but no notification ID');
+                response.status(200).json({ 
+                    success: false,
+                    error: 'Scheduled notification API succeeded but no ID returned',
+                    scheduledResponse: scheduledResult,
+                    immediateNotificationId: immediateResult?.id
+                });
+            }
+        } else {
+            console.log('❌ Scheduled notification failed');
+            response.status(scheduledResponse.status).json({ 
+                error: 'Failed to schedule notification', 
+                details: scheduledResult,
+                immediateNotificationId: immediateResult?.id
+            });
+        }
+    } catch (error) {
+        console.error('❌ Scheduled notification error:', error);
+        response.status(500).json({ 
+            error: 'Error creating scheduled notification', 
+            details: error.message,
+            immediateNotificationId: immediateResult?.id
+        });
+    }
 }
