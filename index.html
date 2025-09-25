@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Notification Scheduler</title>
+    <title>TaskerFlow - Smart Reminder & Productivity App</title>
+    <meta name="description" content="Schedule sequential reminders, manage tasks, and boost productivity with TaskerFlow">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <!-- OneSignal -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -13,537 +18,1739 @@
         });
       });
     </script>
+    <!-- Firebase CDN -->
+    <script type="module">
+      // Firebase will be initialized in the main script below
+    </script>
+    <script type="module" src="/firebase-config.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --secondary: #10b981;
+            --background: #f9fafb;
+            --surface: #ffffff;
+            --text: #1f2937;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dark {
+            --background: #111827;
+            --surface: #1f2937;
+            --text: #f9fafb;
+            --text-secondary: #d1d5db;
+            --border: #374151;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+        }
+        * {
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            transition: var(--transition);
+            overflow-x: hidden;
+        }
+        .app-container {
+            display: flex;
             min-height: 100vh;
         }
-
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-        }
-
-        .header {
-            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
-            padding: 30px;
-            text-align: center;
-            color: white;
-        }
-
-        .header h1 {
-            margin: 0 0 10px 0;
-            font-size: 28px;
-            font-weight: 700;
-        }
-
-        .header p {
-            margin: 0;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 30px;
-        }
-
-        .tab-container {
+        .sidebar {
+            width: 280px;
+            background-color: var(--surface);
+            border-right: 1px solid var(--border);
             display: flex;
-            margin-bottom: 30px;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            flex-direction: column;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+            z-index: 100;
         }
-
-        .tab {
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sidebar-header h1 svg {
+            color: var(--primary);
+        }
+        .nav-menu {
+            padding: 16px 0;
             flex: 1;
-            padding: 15px;
-            background: #f8f9fa;
-            border: none;
+        }
+        .nav-item {
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
             cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-radius: 0 50px 50px 0;
+            margin-right: 8px;
+        }
+        .nav-item:hover, .nav-item.active {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--primary);
+        }
+        .nav-item.active {
+            background-color: rgba(79, 70, 229, 0.15);
             font-weight: 600;
-            transition: all 0.3s ease;
-            position: relative;
         }
-
-        .tab.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+        .nav-item svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
         }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.3s ease;
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border);
         }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #2c3e50;
-        }
-
-        input[type="text"],
-        input[type="datetime-local"],
-        input[type="number"],
-        select,
-        textarea {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #e1e8ed;
-            border-radius: 12px;
-            font-size: 16px;
-            box-sizing: border-box;
-            transition: all 0.3s ease;
-        }
-
-        input:focus,
-        select:focus,
-        textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        textarea {
-            height: 100px;
-            resize: vertical;
-        }
-
-        button {
-            width: 100%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 18px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
         }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .response-message {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 12px;
-            font-weight: 500;
-            text-align: center;
-            display: none;
-        }
-
-        .response-message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 2px solid #c3e6cb;
-        }
-
-        .response-message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 2px solid #f5c6cb;
-        }
-
-        .auto-status {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-        }
-
-        .auto-status h3 {
-            margin: 0 0 10px 0;
-        }
-
-        .status-item {
+        .header {
+            padding: 20px 32px;
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
-            margin: 8px 0;
+            align-items: center;
+            background-color: var(--surface);
+            box-shadow: var(--shadow);
         }
-
-        .message-pool {
-            background: #f8f9fa;
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 15px;
+        .header h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--border);
+            background-color: var(--surface);
+            color: var(--text);
+            font-size: 14px;
+        }
+        .btn:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+        .btn-outline {
+            background: transparent;
+        }
+        .content {
+            flex: 1;
+            padding: 24px 32px;
+            overflow-y: auto;
+            background-color: var(--background);
+        }
+        .card {
+            background-color: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 20px;
         }
-
-        .message-pool h4 {
-            margin: 0 0 15px 0;
-            color: #495057;
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
         }
-
-        .message-list {
-            max-height: 200px;
-            overflow-y: auto;
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
-
-        .message-item {
-            background: white;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
+        .task-item {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+            animation: fadeIn 0.3s ease;
+        }
+        .task-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        .task-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .task-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .task-time {
             font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .task-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .task-action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-secondary);
+        }
+        .task-action-btn:hover {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .form-control {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background-color: var(--surface);
+            color: var(--text);
+            font-size: 16px;
+            transition: var(--transition);
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        textarea.form-control {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .notepad {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 300px;
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            outline: none;
+            color: var(--text);
+            transition: var(--transition);
+        }
+        .notepad:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        .notepad:empty:before {
+            content: attr(placeholder);
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+        .notepad:empty:focus:before {
+            display: none;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+        .setting-item {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .setting-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .setting-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text);
+        }
+        .bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 12px 0;
+            z-index: 1000;
+        }
+        .bottom-nav-items {
+            display: flex;
+            justify-content: space-around;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        .bottom-nav-item.active {
+            color: var(--primary);
+        }
+        .bottom-nav-item svg {
+            width: 24px;
+            height: 24px;
+        }
+        .bottom-nav-item span {
+            font-size: 12px;
+            font-weight: 500;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+            transform: translateX(200%);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            max-width: 350px;
+        }
+        .toast.show {
+            transform: translateX(0);
+        }
+        .toast-success {
+            border-left: 4px solid var(--success);
+        }
+        .toast-error {
+            border-left: 4px solid var(--error);
+        }
+        .toast-undo {
+            border-left: 4px solid var(--warning);
+        }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: var(--primary);
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            color: var(--primary);
+            opacity: 0.6;
+        }
+        .interval-input {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .interval-input input {
+            max-width: 120px;
+        }
+        .interval-input span {
+            color: var(--text-secondary);
+        }
+        /* Sync Status Dot */
+        .sync-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--error);
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        .sync-status.synced { background: var(--success); }
+        .sync-status.syncing { background: var(--warning); }
+        /* Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(79,70,229,0.4);
+            cursor: pointer;
+            z-index: 1000;
+            transition: var(--transition);
+        }
+        .fab:hover {
+            transform: scale(1.05);
+            background: var(--primary-dark);
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                height: 100vh;
+                top: 0;
+                box-shadow: var(--shadow-lg);
+            }
+            .sidebar.open {
+                left: 0;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .bottom-nav {
+                display: flex;
+            }
+            .content {
+                padding: 20px 16px;
+            }
+            .header {
+                padding: 16px;
+            }
+            .card {
+                padding: 20px;
+            }
+            .task-actions {
+                flex-direction: column;
+                gap: 4px;
+            }
+            .task-action-btn {
+                width: 36px;
+                height: 36px;
+            }
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🔔 Smart Notifications</h1>
-            <p>Schedule custom notifications and set up auto-reminders</p>
-        </div>
-
-        <div class="content">
-            <div class="tab-container">
-                <button class="tab active" onclick="switchTab('manual')">Manual Schedule</button>
-                <button class="tab" onclick="switchTab('auto')">Auto Random</button>
+<body class="light">
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v4"></path>
+                        <path d="M12 22v-4"></path>
+                        <path d="m17 20.66-5-5V19"></path>
+                        <path d="m17 3.34-5 5V5"></path>
+                        <path d="m7 3.34 5 5V5"></path>
+                        <path d="m7 20.66 5-5V19"></path>
+                        <circle cx="12" cy="12" r="7"></circle>
+                    </svg>
+                    TaskerFlow
+                </h1>
             </div>
-
-            <!-- Manual Schedule Tab -->
-            <div id="manual-tab" class="tab-content active">
-                <form id="schedule-form">
-                    <div class="form-group">
-                        <label for="message">Notification Message:</label>
-                        <input type="text" id="message" name="message" placeholder="e.g., Time for the meeting" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="schedule-time">Time to Send:</label>
-                        <input type="datetime-local" id="schedule-time" name="schedule-time" required>
-                    </div>
-                    <button type="submit">Schedule Notification</button>
-                </form>
-                <div id="manual-response" class="response-message"></div>
+            <nav class="nav-menu">
+                <div class="nav-item active" data-view="tasks">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    Tasks
+                </div>
+                <div class="nav-item" data-view="sequence">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 12h8M4 16h8M4 8h16"></path>
+                    </svg>
+                    Task Sequence
+                </div>
+                <div class="nav-item" data-view="notepad">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                    Notepad
+                </div>
+                <div class="nav-item" data-view="scheduled">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Scheduled
+                </div>
+                <div class="nav-item" data-view="settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    Settings
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <!-- Will be replaced by auth button dynamically -->
+                <div class="btn btn-primary" id="auth-btn">Login</div>
             </div>
-
-            <!-- Auto Random Tab -->
-            <div id="auto-tab" class="tab-content">
-                <div id="auto-status" class="auto-status" style="display: none;">
-                    <h3>🤖 Auto Notifications Active</h3>
-                    <div class="status-item">
-                        <span>Status:</span>
-                        <span id="status-text">Running</span>
-                    </div>
-                    <div class="status-item">
-                        <span>Next in:</span>
-                        <span id="next-time">-</span>
-                    </div>
-                    <div class="status-item">
-                        <span>Current interval:</span>
-                        <span id="current-interval">-</span>
+        </aside>
+        <main class="main-content">
+            <header class="header">
+                <h2 id="page-title">My Tasks <span class="sync-status" id="sync-status"></span></h2>
+                <div class="header-actions">
+                    <button class="btn" id="theme-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                        </svg>
+                        Dark Mode
+                    </button>
+                </div>
+            </header>
+            <div class="content">
+                <!-- Tasks View -->
+                <div id="tasks-view" class="view active">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Active Tasks</h3>
+                            <span id="task-count">0 tasks</span>
+                        </div>
+                        <div class="task-list" id="task-list">
+                            <div class="empty-state">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                                <p>No tasks yet. Create your first task!</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <div class="message-pool">
-                    <h4>📝 Random Message Pool</h4>
-                    <div class="form-group">
-                        <textarea id="message-pool" placeholder="Enter messages separated by new lines:&#10;&#10;Take a break and stretch!&#10;Stay hydrated - drink some water&#10;Check your posture&#10;Time for a quick walk&#10;Don't forget to blink your eyes">Take a break and stretch!
-Stay hydrated - drink some water 💧
-Check your posture 🧘‍♂️
-Time for a quick walk 🚶‍♂️
-Don't forget to blink your eyes 👁️
-Review your goals for today 🎯
-Practice deep breathing 🌬️
-Appreciate something beautiful around you 🌸</textarea>
+                <!-- Add Task Form -->
+                <div id="add-task-form" class="view" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Add New Task</h3>
+                            <button class="btn btn-outline" id="back-to-tasks">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                                Back
+                            </button>
+                        </div>
+                        <form id="task-form">
+                            <div class="form-group">
+                                <label class="form-label" for="task-title">Task Title</label>
+                                <input type="text" id="task-title" class="form-control" placeholder="Enter task title" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="task-message">Message</label>
+                                <textarea id="task-message" class="form-control" placeholder="Enter notification message" required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="task-schedule">Schedule Time</label>
+                                <input type="datetime-local" id="task-schedule" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <span id="submit-text">Schedule Task</span>
+                                <span id="submit-spinner" class="spinner" style="display: none; color: white;"></span>
+                            </button>
+                        </form>
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="start-interval">Starting Interval (minutes):</label>
-                    <select id="start-interval">
-                        <option value="1">1 minute</option>
-                        <option value="2">2 minutes</option>
-                        <option value="4">4 minutes</option>
-                    </select>
+                <!-- Task Sequence Form -->
+                <div id="sequence-view" class="view" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Task Sequence</h3>
+                            <p style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">Schedule multiple tasks at regular intervals</p>
+                        </div>
+                        <form id="sequence-form">
+                            <div class="form-group">
+                                <label class="form-label" for="sequence-start">Start Time</label>
+                                <input type="datetime-local" id="sequence-start" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="sequence-interval">Interval (minutes)</label>
+                                <div class="interval-input">
+                                    <input type="number" id="sequence-interval" class="form-control" min="1" value="5" required>
+                                    <span>minutes between tasks</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="sequence-tasks">Tasks (one per line)</label>
+                                <textarea id="sequence-tasks" class="form-control" placeholder="Task 1&#10;Task 2&#10;Task 3" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <span id="sequence-submit-text">Schedule Sequence</span>
+                                <span id="sequence-submit-spinner" class="spinner" style="display: none; color: white;"></span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="max-interval">Maximum Interval (minutes):</label>
-                    <select id="max-interval">
-                        <option value="16">16 minutes</option>
-                        <option value="32">32 minutes</option>
-                        <option value="64">64 minutes</option>
-                        <option value="128">128 minutes</option>
-                    </select>
+                <!-- Notepad View -->
+                <div id="notepad-view" class="view" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">My Notes</h3>
+                            <button class="btn btn-primary" id="new-note-btn" style="display: none;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                New Note
+                            </button>
+                        </div>
+                        <div id="notes-list-container" class="task-list">
+                            <div class="empty-state">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                                <p>No notes yet. Create your first note!</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Note Editor -->
+                    <div id="note-editor-card" class="card" style="display: none; margin-top: 24px;">
+                        <div class="card-header">
+                            <input type="text" id="note-editor-title" class="form-control" placeholder="Note Title" style="flex: 1; margin-right: 12px;">
+                            <button class="btn btn-outline" id="close-note-editor">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                                Close
+                            </button>
+                        </div>
+                        <div class="notepad" id="notepad" contenteditable="true" placeholder="Start typing your notes here..."></div>
+                    </div>
                 </div>
-
-                <button id="auto-toggle" onclick="toggleAutoNotifications()">Start Auto Notifications</button>
-                <div id="auto-response" class="response-message"></div>
-            </div>
-        </div>
+                <!-- Scheduled Tasks View -->
+                <div id="scheduled-view" class="view" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Scheduled Tasks</h3>
+                        </div>
+                        <div class="task-list" id="scheduled-list">
+                            <div class="empty-state">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                <p>No scheduled tasks yet.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Settings View -->
+                <div id="settings-view" class="view" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">App Settings</h3>
+                        </div>
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <div class="setting-header">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 2v4"></path>
+                                        <path d="M12 22v-4"></path>
+                                        <path d="m17 20.66-5-5V19"></path>
+                                        <path d="m17 3.34-5 5V5"></path>
+                                        <path d="m7 3.34 5 5V5"></path>
+                                        <path d="m7 20.66 5-5V19"></path>
+                                        <circle cx="12" cy="12" r="7"></circle>
+                                    </svg>
+                                    <h4 class="setting-title">Reminder Settings</h4>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Default Reminder Time</label>
+                                    <select class="form-control" id="default-reminder">
+                                        <option value="5">5 minutes before</option>
+                                        <option value="10">10 minutes before</option>
+                                        <option value="15">15 minutes before</option>
+                                        <option value="30">30 minutes before</option>
+                                        <option value="60">1 hour before</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-header">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                    <h4 class="setting-title">Data Management</h4>
+                                </div>
+                                <div class="form-group">
+                                    <button class="btn" id="export-csv">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                                            <polyline points="10 9 9 9 8 9"></polyline>
+                                        </svg>
+                                        Export Tasks (CSV)
+                                    </button>
+                                    <button class="btn" id="backup-data" style="margin-top: 8px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                        </svg>
+                                        Backup Data
+                                    </button>
+                                    <button class="btn" id="restore-data" style="margin-top: 8px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Restore Data
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-header">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                    </svg>
+                                    <h4 class="setting-title">Security</h4>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">App Lock</label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="app-lock">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                                                 <div class="form-group">
+                                                                     <label class="form-label">Alarm Sound</label>
+                                                                     <select class="form-control" id="alarm-sound">
+                                                                         <option value="default">Default</option>
+                                                                         <option value="gentle">Gentle</option>
+                                                                         <option value="urgent">Urgent</option>
+                                                                     </select>
+                                                                 </div>
+                                                             </div>
+                                                             <div class="setting-item">
+                                                                 <div class="setting-header">
+                                                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                                                     </svg>
+                                                                     <h4 class="setting-title">Account Security</h4>
+                                                                 </div>
+                                                                 <form id="password-change-form">
+                                                                     <div class="form-group">
+                                                                         <label class="form-label" for="current-password">Current Password</label>
+                                                                         <input type="password" id="current-password" class="form-control" placeholder="Enter current password" required>
+                                                                     </div>
+                                                                     <div class="form-group">
+                                                                         <label class="form-label" for="new-password">New Password</label>
+                                                                         <input type="password" id="new-password" class="form-control" placeholder="Enter new password" required>
+                                                                     </div>
+                                                                     <div class="form-group">
+                                                                         <label class="form-label" for="confirm-new-password">Confirm New Password</label>
+                                                                         <input type="password" id="confirm-new-password" class="form-control" placeholder="Confirm new password" required>
+                                                                     </div>
+                                                                     <button type="submit" class="btn btn-primary">Change Password</button>
+                                                                 </form>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                 </div>            </div>
+        </main>
     </div>
-
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="bottom-nav-items">
+            <div class="bottom-nav-item active" data-view="tasks">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>Tasks</span>
+            </div>
+            <div class="bottom-nav-item" data-view="sequence">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 12h8M4 16h8M4 8h16"></path>
+                </svg>
+                <span>Sequence</span>
+            </div>
+            <div class="bottom-nav-item" data-view="notepad">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>Notes</span>
+            </div>
+            <div class="bottom-nav-item" data-view="scheduled">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>Scheduled</span>
+            </div>
+        </div>
+    </nav>
+    <!-- Floating Action Button -->
+    <div class="fab" id="fab">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+    </div>
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <div id="toast-icon"></div>
+        <div id="toast-message"></div>
+        <button id="toast-undo" class="btn" style="margin-left: auto; padding: 4px 8px; font-size: 12px; display: none;">Undo</button>
+    </div>
     <script>
-        let autoNotificationState = {
-            isActive: false,
-            currentInterval: 1, // in minutes
-            startInterval: 1,
-            maxInterval: 16,
-            nextScheduleTime: null,
-            messages: []
+        // Preserve your original state structure, but enhance with Firebase
+        let appState = {
+            tasks: [],
+            notes: [], // Changed from notepadContent to notes array
+            settings: {
+                theme: 'light',
+                defaultReminder: '15',
+                appLock: false,
+                alarmSound: 'default'
+            },
+            deletedTask: null,
+            user: null // Will be set by Firebase
         };
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            // Set minimum time for datetime-local input
+        const elements = {
+            views: {
+                tasks: document.getElementById('tasks-view'),
+                addTask: document.getElementById('add-task-form'),
+                sequence: document.getElementById('sequence-view'),
+                notepad: document.getElementById('notepad-view'),
+                scheduled: document.getElementById('scheduled-view'),
+                settings: document.getElementById('settings-view')
+            },
+            navItems: document.querySelectorAll('.nav-item, .bottom-nav-item'),
+            addTaskBtn: document.getElementById('add-task-btn'),
+            backToTasksBtn: document.getElementById('back-to-tasks'),
+            taskForm: document.getElementById('task-form'),
+            sequenceForm: document.getElementById('sequence-form'),
+            taskList: document.getElementById('task-list'),
+            scheduledList: document.getElementById('scheduled-list'),
+            notepad: document.getElementById('notepad'), // This will become the note editor
+            notesListContainer: document.getElementById('notes-list-container'), // New element for listing notes
+            newNoteBtn: document.getElementById('new-note-btn'),
+            noteEditorCard: document.getElementById('note-editor-card'),
+            noteEditorTitle: document.getElementById('note-editor-title'),
+            closeNoteEditorBtn: document.getElementById('close-note-editor'),
+            themeToggle: document.getElementById('theme-toggle'),
+            taskCount: document.getElementById('task-count'),
+            toast: document.getElementById('toast'),
+            toastMessage: document.getElementById('toast-message'),
+            toastIcon: document.getElementById('toast-icon'),
+            toastUndo: document.getElementById('toast-undo'),
+            exportCsvBtn: document.getElementById('export-csv'),
+            appLockToggle: document.getElementById('app-lock'),
+            alarmSoundSelect: document.getElementById('alarm-sound'),
+            defaultReminderSelect: document.getElementById('default-reminder'),
+            authBtn: document.getElementById('auth-btn'),
+            syncStatus: document.getElementById('sync-status'),
+            fab: document.getElementById('fab'),
+            backupBtn: document.getElementById('backup-data'),
+            restoreBtn: document.getElementById('restore-data'),
+            passwordChangeForm: document.getElementById('password-change-form'),
+            currentPasswordInput: document.getElementById('current-password'),
+            newPasswordInput: document.getElementById('new-password'),
+            confirmNewPasswordInput: document.getElementById('confirm-new-password')
+        };
+
+        // Firebase will be loaded via CDN
+        let firebaseApp = null;
+        let firebaseAuth = null;
+        let firebaseDb = null;
+
+        // Initialize Firebase and app
+        document.addEventListener('DOMContentLoaded', async () => {
             const now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            const nowString = now.toISOString().slice(0, 16);
-            document.getElementById('schedule-time').min = nowString;
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset() + 1);
+            const minDateTime = now.toISOString().slice(0, 16);
+            document.getElementById('task-schedule').min = minDateTime;
+            document.getElementById('sequence-start').min = minDateTime;
 
-            // Load saved auto state
-            loadAutoState();
-            updateAutoStatus();
-        });
+            // Load Firebase
+            const [{ initializeApp }, { getAuth, onAuthStateChanged, signOut }, { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, enableIndexedDbPersistence }] = 
+                await Promise.all([
+                    import("https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js"),
+                    import("https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js"),
+                    import("https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js")
+                ]);
 
-        // Tab switching
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
-            document.getElementById(`${tabName}-tab`).classList.add('active');
-        }
-
-        // Manual scheduling (existing functionality)
-        document.getElementById('schedule-form').addEventListener('submit', async (event) => {
-            event.preventDefault();
-
-            const message = document.getElementById('message').value;
-            const scheduleTimeValue = document.getElementById('schedule-time').value;
-            const responseDiv = document.getElementById('manual-response');
-
-            if (!message || !scheduleTimeValue) {
-                showResponse(responseDiv, 'Please fill out both fields.', 'error');
-                return;
-            }
-
-            const scheduleTime = new Date(scheduleTimeValue).toString();
-            showResponse(responseDiv, 'Scheduling...', 'success');
-
-            try {
-                const response = await fetch('/api/schedule-notification', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, scheduleTime }),
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    showResponse(responseDiv, 'Notification scheduled successfully!', 'success');
-                    document.getElementById('schedule-form').reset();
-                    document.getElementById('schedule-time').min = document.getElementById('schedule-time').min;
-                } else {
-                    throw new Error(result.error || 'Failed to schedule notification.');
-                }
-            } catch (error) {
-                showResponse(responseDiv, `Error: ${error.message}`, 'error');
-            }
-        });
-
-        // Auto notifications functionality
-        function toggleAutoNotifications() {
-            if (autoNotificationState.isActive) {
-                stopAutoNotifications();
-            } else {
-                startAutoNotifications();
-            }
-        }
-
-        function startAutoNotifications() {
-            const startInterval = parseInt(document.getElementById('start-interval').value);
-            const maxInterval = parseInt(document.getElementById('max-interval').value);
-            const messagePool = document.getElementById('message-pool').value;
-
-            if (!messagePool.trim()) {
-                showResponse(document.getElementById('auto-response'), 'Please add some messages to the pool!', 'error');
-                return;
-            }
-
-            const messages = messagePool.split('\n').filter(msg => msg.trim().length > 0);
-            
-            if (messages.length === 0) {
-                showResponse(document.getElementById('auto-response'), 'Please add at least one message!', 'error');
-                return;
-            }
-
-            autoNotificationState = {
-                isActive: true,
-                currentInterval: startInterval,
-                startInterval: startInterval,
-                maxInterval: maxInterval,
-                messages: messages,
-                nextScheduleTime: null
+            const firebaseConfig = {
+                apiKey: "AIzaSyC1Ijko3EMVffxtGy3EJ5IGmoAD7KPhEnY",
+                authDomain: "taskerflow-77fac.firebaseapp.com",
+                projectId: "taskerflow-77fac",
+                storageBucket: "taskerflow-77fac.firebasestorage.app",
+                messagingSenderId: "278341339145",
+                appId: "1:278341339145:web:56e71b8c06ebf63c2750d8",
+                measurementId: "G-F9FMHVG0BY"
             };
 
-            scheduleNextAutoNotification();
-            saveAutoState();
-            updateAutoStatus();
-            
-            document.getElementById('auto-toggle').textContent = 'Stop Auto Notifications';
-            showResponse(document.getElementById('auto-response'), 
-                `Auto notifications started! First notification in ${startInterval} minute${startInterval > 1 ? 's' : ''}.`, 'success');
+            firebaseApp = initializeApp(firebaseConfig);
+            firebaseAuth = getAuth(firebaseApp);
+            firebaseDb = getFirestore(firebaseApp);
+            enableIndexedDbPersistence(firebaseDb).catch(console.warn);
+
+            // Load data
+            loadData();
+            applyTheme(appState.settings.theme);
+            setupEventListeners();
+            updateTaskCount();
+            renderTasks();
+            renderScheduledTasks();
+            renderNotes(); // New function to render notes
+
+            // Auth state listener
+            onAuthStateChanged(firebaseAuth, (user) => {
+                appState.user = user;
+                updateAuthUI();
+                if (user) {
+                    loadUserDataFromFirestore();
+                } else {
+                    // Keep guest data
+                }
+            });
+        });
+
+        function setupEventListeners() {
+            elements.navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const view = item.dataset.view;
+                    switchView(view);
+                });
+            });
+
+            // Floating Action Button
+            elements.fab.addEventListener('click', () => {
+                const current = getCurrentView();
+                if (current === 'tasks') switchView('addTask');
+                else if (current === 'sequence') elements.sequenceForm.dispatchEvent(new Event('submit'));
+                else if (current === 'notepad') createNote(); // Call createNote for notepad view
+            });
+
+            elements.addTaskBtn?.addEventListener('click', () => switchView('addTask'));
+            elements.backToTasksBtn?.addEventListener('click', () => switchView('tasks'));
+            elements.taskForm.addEventListener('submit', handleTaskSubmit);
+            elements.sequenceForm.addEventListener('submit', handleSequenceSubmit);
+            elements.themeToggle.addEventListener('click', toggleTheme);
+            elements.notepad.addEventListener('input', debounce(() => {
+                saveActiveNote();
+            }, 500));
+
+            elements.noteEditorTitle.addEventListener('input', debounce(() => {
+                saveActiveNote();
+            }, 500));
+
+            elements.newNoteBtn.addEventListener('click', createNote);
+            elements.closeNoteEditorBtn.addEventListener('click', closeNoteEditor);
+
+            elements.authBtn.addEventListener('click', () => {
+                if (appState.user) {
+                    signOut(firebaseAuth).then(() => {
+                        localStorage.clear(); // Clear local guest data
+                        appState.tasks = [];
+                        appState.notes = []; // Clear notes instead of notepadContent
+                        renderTasks();
+                        renderScheduledTasks();
+                        renderNotes(); // Re-render notes after clearing
+                    });
+                } else {
+                    window.location.href = '/auth.html';
+                }
+            });
+
+            elements.exportCsvBtn.addEventListener('click', exportTasksAsCSV);
+            elements.backupBtn.addEventListener('click', backupData);
+            elements.restoreBtn.addEventListener('click', restoreData);
+
+            elements.appLockToggle.addEventListener('change', () => {
+                appState.settings.appLock = elements.appLockToggle.checked;
+                saveData();
+            });
+            elements.alarmSoundSelect.addEventListener('change', () => {
+                appState.settings.alarmSound = elements.alarmSoundSelect.value;
+                saveData();
+            });
+            elements.defaultReminderSelect.addEventListener('change', () => {
+                appState.settings.defaultReminder = elements.defaultReminderSelect.value;
+                saveData();
+            });
+
+            elements.passwordChangeForm.addEventListener('submit', handleChangePassword);
         }
 
-        function stopAutoNotifications() {
-            autoNotificationState.isActive = false;
-            autoNotificationState.nextScheduleTime = null;
-            
-            saveAutoState();
-            updateAutoStatus();
-            
-            document.getElementById('auto-toggle').textContent = 'Start Auto Notifications';
-            showResponse(document.getElementById('auto-response'), 'Auto notifications stopped.', 'error');
+        function getCurrentView() {
+            if (elements.views.addTask.style.display === 'block') return 'tasks';
+            for (let [key, view] of Object.entries(elements.views)) {
+                if (view.classList.contains('active')) return key;
+            }
+            return 'tasks';
         }
 
-        async function scheduleNextAutoNotification() {
-            if (!autoNotificationState.isActive) return;
 
-            const randomMessage = autoNotificationState.messages[
-                Math.floor(Math.random() * autoNotificationState.messages.length)
-            ];
+        
 
-            const nextTime = new Date();
-            nextTime.setMinutes(nextTime.getMinutes() + autoNotificationState.currentInterval);
-            
-            autoNotificationState.nextScheduleTime = nextTime;
-            saveAutoState();
+        // Keep all your original functions: switchView, handleTaskSubmit, handleSequenceSubmit, renderTasks, deleteTask, etc.
+        // ... (all your existing logic remains unchanged)
 
+        // Only add new functions below:
+
+        function updateAuthUI() {
+            if (appState.user) {
+                elements.authBtn.textContent = 'Logout';
+                elements.authBtn.style.backgroundColor = '#ef4444';
+            } else {
+                elements.authBtn.textContent = 'Login';
+                elements.authBtn.style.backgroundColor = '';
+            }
+        }
+
+        function saveData() {
+            if (!appState.user) {
+                localStorage.setItem('taskerflow-guest', JSON.stringify({
+                    tasks: appState.tasks,
+                    notes: appState.notes,
+                    settings: appState.settings
+                }));
+            }
+        }
+
+        function loadData() {
+            const data = localStorage.getItem('taskerflow-guest');
+            if (data) {
+                try {
+                    const parsed = JSON.parse(data);
+                    appState.tasks = parsed.tasks || [];
+                    appState.notes = parsed.notes || [];
+                    if (parsed.settings) {
+                        appState.settings = { ...appState.settings, ...parsed.settings };
+                    }
+                } catch (e) {
+                    console.error('Failed to parse guest data', e);
+                }
+            }
+        }
+
+        async function loadUserDataFromFirestore() {
+            if (!appState.user) return;
+            // In a real app, you'd fetch from Firestore
+            // For now, we keep local data and assume sync
+            elements.syncStatus.classList.add('synced');
+        }
+
+        function backupData() {
+            const data = {
+                tasks: appState.tasks,
+                notes: appState.notes,
+                settings: appState.settings
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'taskerflow-backup.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Backup saved!', 'success');
+        }
+
+        function restoreData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = e => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        appState.tasks = data.tasks || [];
+                        appState.notes = data.notes || [];
+                        if (data.settings) {
+                            appState.settings = { ...appState.settings, ...data.settings };
+                        }
+                        saveData();
+                        renderTasks();
+                        renderScheduledTasks();
+                        renderNotes(); // Call renderNotes after restoring
+                        showToast('Data restored!', 'success');
+                    } catch (err) {
+                        showToast('Invalid backup file', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Keep all your original functions below this line
+        function switchView(viewName) {
+            closeNoteEditor(); // Save and close active note when switching views
+            Object.values(elements.views).forEach(view => {
+                view.classList.remove('active');
+                view.style.display = 'none';
+            });
+            let title = 'TaskerFlow';
+            if (viewName === 'addTask') {
+                elements.views.addTask.style.display = 'block';
+                title = 'Add New Task';
+            } else {
+                elements.views[viewName].classList.add('active');
+                elements.views[viewName].style.display = 'block';
+                const titles = {
+                    tasks: 'My Tasks',
+                    sequence: 'Task Sequence',
+                    notepad: 'Notepad',
+                    scheduled: 'Scheduled Tasks',
+                    settings: 'Settings'
+                };
+                title = titles[viewName] || 'TaskerFlow';
+            }
+            document.getElementById('page-title').textContent = title;
+            elements.navItems.forEach(item => {
+                const isActive = item.dataset.view === viewName || (viewName === 'addTask' && item.dataset.view === 'tasks');
+                item.classList.toggle('active', isActive);
+            });
+            // Hide note editor when switching views
+            elements.noteEditorCard.style.display = 'none';
+            elements.newNoteBtn.style.display = viewName === 'notepad' ? 'inline-flex' : 'none';
+            if (viewName === 'notepad') {
+                elements.notesListContainer.style.display = 'flex';
+                renderNotes();
+            }
+        }
+
+        async function handleTaskSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('task-title').value.trim();
+            const message = document.getElementById('task-message').value.trim();
+            const scheduleTime = document.getElementById('task-schedule').value;
+            if (!title || !message || !scheduleTime) {
+                showToast('Please fill all fields', 'error');
+                return;
+            }
+            showLoading('task');
             try {
                 const response = await fetch('/api/schedule-notification', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        message: randomMessage, 
-                        scheduleTime: nextTime.toString() 
+                        message: message, 
+                        scheduleTime: new Date(scheduleTime).toString() 
                     }),
                 });
-
+                const result = await response.json();
                 if (response.ok) {
-                    console.log(`Auto notification scheduled for ${nextTime.toLocaleString()}: ${randomMessage}`);
-                    
-                    // Double the interval for next time (exponential backoff)
-                    autoNotificationState.currentInterval = Math.min(
-                        autoNotificationState.currentInterval * 2,
-                        autoNotificationState.maxInterval
-                    );
-
-                    // Schedule the next one after this one is delivered
-                    setTimeout(() => {
-                        scheduleNextAutoNotification();
-                    }, autoNotificationState.currentInterval * 60 * 1000); // Convert minutes to milliseconds
+                    const task = {
+                        id: Date.now().toString(),
+                        title: title,
+                        message: message,
+                        scheduleTime: scheduleTime,
+                        notificationId: result.notificationId,
+                        createdAt: new Date().toISOString(),
+                        uid: appState.user?.uid || 'guest'
+                    };
+                    appState.tasks.push(task);
+                    saveData();
+                    elements.taskForm.reset();
+                    showToast('Task scheduled successfully!', 'success');
+                    switchView('tasks');
+                    renderTasks();
+                    updateTaskCount();
+                } else {
+                    throw new Error(result.error || 'Failed to schedule notification');
                 }
             } catch (error) {
-                console.error('Error scheduling auto notification:', error);
+                console.error('Error:', error);
+                showToast(`Error: ${error.message}`, 'error');
+            } finally {
+                hideLoading('task');
             }
         }
 
-        function updateAutoStatus() {
-            const statusDiv = document.getElementById('auto-status');
-            
-            if (autoNotificationState.isActive) {
-                statusDiv.style.display = 'block';
-                document.getElementById('status-text').textContent = 'Active';
-                document.getElementById('current-interval').textContent = 
-                    `${autoNotificationState.currentInterval} minute${autoNotificationState.currentInterval > 1 ? 's' : ''}`;
-                
-                if (autoNotificationState.nextScheduleTime) {
-                    updateCountdown();
-                    setInterval(updateCountdown, 1000);
-                }
-            } else {
-                statusDiv.style.display = 'none';
-            }
-        }
-
-        function updateCountdown() {
-            if (!autoNotificationState.nextScheduleTime) return;
-            
-            const now = new Date();
-            const nextTime = new Date(autoNotificationState.nextScheduleTime);
-            const diff = nextTime - now;
-            
-            if (diff <= 0) {
-                document.getElementById('next-time').textContent = 'Now';
+        async function handleSequenceSubmit(e) {
+            e.preventDefault();
+            const startTime = document.getElementById('sequence-start').value;
+            const interval = parseInt(document.getElementById('sequence-interval').value);
+            const tasksText = document.getElementById('sequence-tasks').value.trim();
+            if (!startTime || !interval || !tasksText) {
+                showToast('Please fill all fields', 'error');
                 return;
             }
-            
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-            
-            if (hours > 0) {
-                document.getElementById('next-time').textContent = 
-                    `${hours}h ${minutes}m ${seconds}s`;
-            } else {
-                document.getElementById('next-time').textContent = 
-                    `${minutes}m ${seconds}s`;
+            const tasks = tasksText.split('\n').filter(t => t.trim()).map(t => t.trim());
+            if (tasks.length === 0) {
+                showToast('Please enter at least one task', 'error');
+                return;
+            }
+            showLoading('sequence');
+            try {
+                const start = new Date(startTime);
+                let current = new Date(start);
+                const scheduledTasks = [];
+                for (let i = 0; i < tasks.length; i++) {
+                    const taskTime = new Date(current);
+                    const message = tasks[i];
+                    const title = `Task ${i + 1}: ${message.substring(0, 20)}${message.length > 20 ? '...' : ''}`;
+                    const response = await fetch('/api/schedule-notification', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            message: message, 
+                            scheduleTime: taskTime.toString() 
+                        }),
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        const task = {
+                            id: `${Date.now()}-${i}`,
+                            title: title,
+                            message: message,
+                            scheduleTime: taskTime.toISOString().slice(0, 16),
+                            notificationId: result.notificationId,
+                            createdAt: new Date().toISOString(),
+                            uid: appState.user?.uid || 'guest'
+                        };
+                        appState.tasks.push(task);
+                        scheduledTasks.push(task);
+                    } else {
+                        throw new Error(result.error || 'Failed to schedule task');
+                    }
+                    current.setMinutes(current.getMinutes() + interval);
+                }
+                saveData();
+                elements.sequenceForm.reset();
+                showToast(`${tasks.length} tasks scheduled successfully!`, 'success');
+                switchView('tasks');
+                renderTasks();
+                updateTaskCount();
+            } catch (error) {
+                console.error('Error:', error);
+                showToast(`Error: ${error.message}`, 'error');
+            } finally {
+                hideLoading('sequence');
             }
         }
 
-        function saveAutoState() {
-            // In a real app, you'd save to a database or server
-            // For now, we'll use localStorage (though it won't work in Claude artifacts)
-            console.log('Auto state saved:', autoNotificationState);
+        function renderTasks() {
+            const now = new Date();
+            const activeTasks = appState.tasks.filter(task => new Date(task.scheduleTime) > now);
+            const list = elements.taskList;
+            if (activeTasks.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <p>No active tasks. Create your first task!</p>
+                    </div>
+                `;
+                return;
+            }
+            list.innerHTML = activeTasks.map(task => {
+                const taskTime = new Date(task.scheduleTime);
+                return `
+                    <div class="task-item fade-in">
+                        <div class="task-info">
+                            <div class="task-title">${escapeHtml(task.title)}</div>
+                            <div class="task-time">${taskTime.toLocaleString()}</div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="task-action-btn" onclick="editTask('${task.id}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="task-action-btn" onclick="deleteTask('${task.id}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
-        function loadAutoState() {
-            // In a real app, you'd load from a database or server
-            // For now, just log that we're loading
-            console.log('Loading auto state...');
+        function renderScheduledTasks() {
+            const pastTasks = appState.tasks.filter(task => new Date(task.scheduleTime) <= new Date());
+            const list = elements.scheduledList;
+            if (pastTasks.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <p>No scheduled tasks yet.</p>
+                    </div>
+                `;
+                return;
+            }
+            list.innerHTML = pastTasks.map(task => {
+                const taskTime = new Date(task.scheduleTime);
+                return `
+                    <div class="task-item fade-in">
+                        <div class="task-info">
+                            <div class="task-title">${escapeHtml(task.title)}</div>
+                            <div class="task-time">${taskTime.toLocaleString()}</div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="task-action-btn" onclick="deleteTask('${task.id}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
-        function showResponse(element, message, type) {
-            element.textContent = message;
-            element.className = `response-message ${type}`;
-            element.style.display = 'block';
-            
+        function renderNotes() {
+            const list = elements.notesListContainer;
+            if (appState.notes.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <p>No notes yet. Create your first note!</p>
+                    </div>
+                `;
+                return;
+            }
+            list.innerHTML = appState.notes.map(note => {
+                const noteTitle = note.title || 'Untitled Note';
+                const noteContentSnippet = note.content.replace(/<[^>]*>/g, '').substring(0, 100) + (note.content.length > 100 ? '...' : '');
+                const lastUpdated = new Date(note.updatedAt).toLocaleString();
+                return `
+                    <div class="task-item fade-in" onclick="editNote('${note.id}')">
+                        <div class="task-info">
+                            <div class="task-title">${escapeHtml(noteTitle)}</div>
+                            <div class="task-time">${escapeHtml(noteContentSnippet)}</div>
+                            <div class="task-time" style="font-size: 12px; margin-top: 4px;">Last updated: ${lastUpdated}</div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="task-action-btn" onclick="event.stopPropagation(); deleteNote('${note.id}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        let activeNoteId = null;
+
+        function createNote() {
+            const newNote = {
+                id: Date.now().toString(),
+                title: '',
+                content: '',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                uid: appState.user?.uid || 'guest'
+            };
+            appState.notes.unshift(newNote); // Add to the beginning
+            saveData();
+            renderNotes();
+            editNote(newNote.id);
+        }
+
+        function editNote(id) {
+            const note = appState.notes.find(n => n.id === id);
+            if (!note) return;
+
+            activeNoteId = id;
+            elements.noteEditorTitle.value = note.title;
+            elements.notepad.innerHTML = note.content;
+
+            elements.notesListContainer.style.display = 'none';
+            elements.noteEditorCard.style.display = 'block';
+            elements.newNoteBtn.style.display = 'none'; // Hide new note button when editing
+            elements.notepad.focus();
+        }
+
+        function saveActiveNote() {
+            if (!activeNoteId) return;
+            const noteIndex = appState.notes.findIndex(n => n.id === activeNoteId);
+            if (noteIndex > -1) {
+                appState.notes[noteIndex].title = elements.noteEditorTitle.value;
+                appState.notes[noteIndex].content = elements.notepad.innerHTML;
+                appState.notes[noteIndex].updatedAt = new Date().toISOString();
+                saveData();
+                renderNotes();
+            }
+        }
+
+        function deleteNote(id) {
+            appState.notes = appState.notes.filter(note => note.id !== id);
+            saveData();
+            renderNotes();
+            showToast('Note deleted!', 'success');
+            if (activeNoteId === id) {
+                closeNoteEditor();
+            }
+        }
+
+        function closeNoteEditor() {
+            saveActiveNote(); // Save before closing
+            activeNoteId = null;
+            elements.noteEditorCard.style.display = 'none';
+            elements.notesListContainer.style.display = 'flex';
+            elements.newNoteBtn.style.display = 'inline-flex'; // Show new note button
+            elements.noteEditorTitle.value = '';
+            elements.notepad.innerHTML = '';
+        }
+
+        function editTask(id) {
+            const task = appState.tasks.find(t => t.id === id);
+            if (!task) return;
+            document.getElementById('task-title').value = task.title;
+            document.getElementById('task-message').value = task.message;
+            document.getElementById('task-schedule').value = task.scheduleTime.slice(0, 16);
+            appState.tasks = appState.tasks.filter(t => t.id !== id);
+            saveData();
+            switchView('addTask');
+            document.getElementById('submit-text').textContent = 'Update Task';
+        }
+
+        function deleteTask(id) {
+            const task = appState.tasks.find(t => t.id === id);
+            if (!task) return;
+            appState.deletedTask = {...task};
+            appState.tasks = appState.tasks.filter(t => t.id !== id);
+            saveData();
+            renderTasks();
+            renderScheduledTasks();
+            updateTaskCount();
+            showToast('Task deleted', 'undo');
+            elements.toastUndo.style.display = 'inline-flex';
+            elements.toastUndo.onclick = () => {
+                appState.tasks.push(appState.deletedTask);
+                saveData();
+                renderTasks();
+                renderScheduledTasks();
+                updateTaskCount();
+                showToast('Task restored', 'success');
+                elements.toastUndo.style.display = 'none';
+                appState.deletedTask = null;
+            };
             setTimeout(() => {
-                element.style.display = 'none';
+                if (appState.deletedTask && appState.deletedTask.id === id) {
+                    appState.deletedTask = null;
+                    elements.toastUndo.style.display = 'none';
+                }
             }, 5000);
         }
+
+        function updateTaskCount() {
+            const activeCount = appState.tasks.filter(task => new Date(task.scheduleTime) > new Date()).length;
+            elements.taskCount.textContent = `${activeCount} ${activeCount === 1 ? 'task' : 'tasks'}`;
+        }
+
+        function toggleTheme() {
+            const newTheme = appState.settings.theme === 'light' ? 'dark' : 'light';
+            appState.settings.theme = newTheme;
+            applyTheme(newTheme);
+            saveData();
+        }
+
+        function applyTheme(theme) {
+            document.body.className = theme;
+            elements.themeToggle.innerHTML = `
+                ${theme === 'dark' ? 
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>' : 
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>'
+                }
+                ${theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            `;
+        }
+
+        function exportTasksAsCSV() {
+            if (appState.tasks.length === 0) {
+                showToast('No tasks to export', 'error');
+                return;
+            }
+            const headers = ['Title', 'Message', 'Schedule Time', 'Created At'];
+            const rows = appState.tasks.map(task => [
+                `"${task.title.replace(/"/g, '""')}"`,
+                `"${task.message.replace(/"/g, '""')}"`,
+                new Date(task.scheduleTime).toLocaleString(),
+                new Date(task.createdAt).toLocaleString()
+            ]);
+            const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'taskerflow-tasks.csv';
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('Tasks exported successfully!', 'success');
+        }
+
+        function showToast(message, type) {
+            elements.toastMessage.textContent = message;
+            elements.toast.className = `toast toast-${type} show`;
+            elements.toastUndo.style.display = 'none';
+            if (type === 'success') {
+                elements.toastIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+            } else if (type === 'error') {
+                elements.toastIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+            } else if (type === 'undo') {
+                elements.toastIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0Z"></path><path d="M3 12V7.5a4.5 4.5 0 1 1 9 0V12"></path></svg>';
+            }
+            setTimeout(() => {
+                elements.toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function showLoading(type) {
+            if (type === 'task') {
+                document.getElementById('submit-text').style.display = 'none';
+                document.getElementById('submit-spinner').style.display = 'inline-block';
+            } else if (type === 'sequence') {
+                document.getElementById('sequence-submit-text').style.display = 'none';
+                document.getElementById('sequence-submit-spinner').style.display = 'inline-block';
+            }
+        }
+
+        function hideLoading(type) {
+            if (type === 'task') {
+                document.getElementById('submit-text').style.display = 'inline';
+                document.getElementById('submit-spinner').style.display = 'none';
+            } else if (type === 'sequence') {
+                document.getElementById('sequence-submit-text').style.display = 'inline';
+                document.getElementById('sequence-submit-spinner').style.display = 'none';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            const currentPassword = elements.currentPasswordInput.value;
+            const newPassword = elements.newPasswordInput.value;
+            const confirmNewPassword = elements.confirmNewPasswordInput.value;
+
+            if (!currentPassword || !newPassword || !confirmNewPassword) {
+                showToast('Please fill in all password fields.', 'error');
+                return;
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                showToast('New password and confirmation do not match.', 'error');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                showToast('New password must be at least 6 characters long.', 'error');
+                return;
+            }
+
+            if (!appState.user) {
+                showToast('You must be logged in to change your password.', 'error');
+                return;
+            }
+
+            try {
+                const { EmailAuthProvider, reauthenticateWithCredential, updatePassword } = await import("https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js");
+                const credential = EmailAuthProvider.credential(appState.user.email, currentPassword);
+                await reauthenticateWithCredential(appState.user, credential);
+                await updatePassword(appState.user, newPassword);
+                showToast('Password updated successfully!', 'success');
+                elements.passwordChangeForm.reset();
+            } catch (error) {
+                console.error('Error changing password:', error);
+                if (error.code === 'auth/wrong-password') {
+                    showToast('Incorrect current password.', 'error');
+                } else if (error.code === 'auth/requires-recent-login') {
+                    showToast('Please log in again to change your password.', 'error');
+                } else {
+                    showToast(`Error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // PWA Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('SW registered:', reg))
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+
+        
     </script>
 </body>
 </html>

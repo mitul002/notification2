@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign In - TaskerFlow</title>
+  <meta name="description" content="Sign in to TaskerFlow to sync your tasks, sequences, and notes across devices.">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --background: #f9fafb;
+      --surface: #ffffff;
+      --text: #1f2937;
+      --text-secondary: #6b7280;
+      --border: #e5e7eb;
+      --error: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+    .dark {
+      --background: #111827;
+      --surface: #1f2937;
+      --text: #f9fafb;
+      --text-secondary: #d1d5db;
+      --border: #374151;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      transition: background-color 0.3s ease;
+    }
+    .auth-container {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      border: 1px solid var(--border);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .logo h1 {
+      font-size: 28px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--primary);
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    .form-control {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 16px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    .password-strength {
+      height: 4px;
+      background: #e5e7eb;
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .password-strength-bar {
+      height: 100%;
+      width: 0;
+      transition: width 0.3s, background-color 0.3s;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 16px;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .error {
+      color: var(--error);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    .success {
+      color: var(--success);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    .links {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    .links a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      margin: 0 4px;
+      cursor: pointer;
+    }
+    .back-link {
+      text-align: center;
+      margin-top: 16px;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+      display: none;
+    }
+    .form-view {
+      display: none;
+    }
+    .form-view.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--surface);
+      border-left: 4px solid var(--success);
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: none;
+      z-index: 1000;
+      max-width: 350px;
+    }
+    .toast.error {
+      border-left-color: var(--error);
+    }
+    .guest-hint {
+      background: rgba(79, 70, 229, 0.05);
+      border-left: 3px solid var(--primary);
+      padding: 12px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      margin-top: 16px;
+      display: none;
+    }
+    .guest-hint.show {
+      display: block;
+    }
+    @media (max-width: 480px) {
+      .auth-container {
+        padding: 24px 20px;
+      }
+    }
+  </style>
+</head>
+<body class="light">
+  <div class="auth-container">
+    <div class="logo">
+      <h1>
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2v4"></path>
+          <path d="M12 22v-4"></path>
+          <path d="m17 20.66-5-5V19"></path>
+          <path d="m17 3.34-5 5V5"></path>
+          <path d="m7 3.34 5 5V5"></path>
+          <path d="m7 20.66 5-5V19"></path>
+          <circle cx="12" cy="12" r="7"></circle>
+        </svg>
+        TaskerFlow
+      </h1>
+    </div>
+
+    <!-- Login Form -->
+    <form id="login-form" class="form-view active">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary">Sign In</button>
+      <div class="error" id="login-error"></div>
+      <div class="links">
+        Don’t have an account? <a id="show-signup">Sign Up</a><br>
+        Forgot your password? <a id="show-forgot">Reset it</a>
+      </div>
+    </form>
+
+    <!-- Signup Form -->
+    <form id="signup-form" class="form-view">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" id="signup-password" required minlength="6" autocomplete="new-password">
+        <div class="password-strength">
+          <div class="password-strength-bar" id="password-strength-bar"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <input type="password" class="form-control" required autocomplete="new-password">
+      </div>
+      <div class="guest-hint" id="guest-hint">
+        ✨ Signing up will merge your guest tasks & notes into your account!
+      </div>
+      <button type="submit" class="btn btn-primary">Create Account</button>
+      <div class="error" id="signup-error"></div>
+      <div class="success" id="signup-success"></div>
+    </form>
+
+    <!-- Forgot Password Form -->
+    <form id="forgot-form" class="form-view">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" required autocomplete="email">
+      </div>
+      <button type="submit" class="btn btn-primary">Send Reset Link</button>
+      <div class="error" id="forgot-error"></div>
+      <div class="success" id="forgot-success"></div>
+    </form>
+
+    <div class="back-link" id="back-to-login">← Back to Login</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { 
+      getAuth, 
+      signInWithEmailAndPassword, 
+      createUserWithEmailAndPassword, 
+      sendPasswordResetEmail,
+      sendEmailVerification
+    } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC1Ijko3EMVffxtGy3EJ5IGmoAD7KPhEnY",
+      authDomain: "taskerflow-77fac.firebaseapp.com",
+      projectId: "taskerflow-77fac",
+      storageBucket: "taskerflow-77fac.firebasestorage.app",
+      messagingSenderId: "278341339145",
+      appId: "1:278341339145:web:56e71b8c06ebf63c2750d8",
+      measurementId: "G-F9FMHVG0BY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // DOM
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const forgotForm = document.getElementById('forgot-form');
+    const backLink = document.getElementById('back-to-login');
+    const showSignup = document.getElementById('show-signup');
+    const showForgot = document.getElementById('show-forgot');
+    const passwordInput = document.getElementById('signup-password');
+    const strengthBar = document.getElementById('password-strength-bar');
+    const guestHint = document.getElementById('guest-hint');
+
+    // Show forms
+    function showForm(formId) {
+      document.querySelectorAll('.form-view').forEach(f => f.classList.remove('active'));
+      document.getElementById(formId).classList.add('active');
+      backLink.style.display = formId !== 'login-form' ? 'block' : 'none';
+      // Show guest hint only on signup
+      if (formId === 'signup-form') {
+        guestHint.classList.add('show');
+      } else {
+        guestHint.classList.remove('show');
+      }
+    }
+
+    showSignup.addEventListener('click', () => showForm('signup-form'));
+    showForgot.addEventListener('click', () => showForm('forgot-form'));
+    backLink.addEventListener('click', () => showForm('login-form'));
+
+    // Password strength
+    passwordInput?.addEventListener('input', () => {
+      const password = passwordInput.value;
+      let strength = 0;
+      if (password.length >= 6) strength += 25;
+      if (/[A-Z]/.test(password)) strength += 25;
+      if (/[0-9]/.test(password)) strength += 25;
+      if (/[^A-Za-z0-9]/.test(password)) strength += 25;
+      
+      strengthBar.style.width = `${strength}%`;
+      if (strength < 50) {
+        strengthBar.style.backgroundColor = '#ef4444';
+      } else if (strength < 75) {
+        strengthBar.style.backgroundColor = '#f59e0b';
+      } else {
+        strengthBar.style.backgroundColor = '#10b981';
+      }
+    });
+
+    // Toast
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type}`;
+      toast.style.display = 'block';
+      setTimeout(() => toast.style.display = 'none', 4000);
+    }
+
+    // Login
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = loginForm.querySelector('input[type="email"]').value;
+      const password = loginForm.querySelector('input[type="password"]').value;
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        if (!user.emailVerified) {
+          await sendEmailVerification(user);
+          showToast('Verification email sent! Please verify your email.', 'success');
+          setTimeout(() => window.location.href = '/', 3000);
+        } else {
+          window.location.href = '/';
+        }
+      } catch (error) {
+        document.getElementById('login-error').textContent = error.message;
+        showToast('Login failed: ' + error.message, 'error');
+      }
+    });
+
+    // Signup
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = signupForm.querySelector('input[type="email"]').value;
+      const password = signupForm.querySelector('#signup-password').value;
+      const confirm = signupForm.querySelectorAll('input[type="password"]')[1].value;
+      
+      if (password !== confirm) {
+        document.getElementById('signup-error').textContent = "Passwords don't match";
+        return;
+      }
+
+      if (password.length < 6) {
+        document.getElementById('signup-error').textContent = "Password must be at least 6 characters";
+        return;
+      }
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(userCredential.user);
+        document.getElementById('signup-success').textContent = "Account created! Verification email sent.";
+        showToast('Account created! Please verify your email.', 'success');
+        setTimeout(() => showForm('login-form'), 3000);
+      } catch (error) {
+        document.getElementById('signup-error').textContent = error.message;
+        showToast('Signup failed: ' + error.message, 'error');
+      }
+    });
+
+    // Forgot Password
+    forgotForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = forgotForm.querySelector('input[type="email"]').value;
+      try {
+        await sendPasswordResetEmail(auth, email);
+        document.getElementById('forgot-success').textContent = "Password reset email sent!";
+        showToast('Password reset email sent!', 'success');
+        setTimeout(() => showForm('login-form'), 2000);
+      } catch (error) {
+        document.getElementById('forgot-error').textContent = error.message;
+        showToast('Error: ' + error.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>
