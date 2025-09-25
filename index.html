@@ -149,6 +149,33 @@
             font-weight: 600;
             color: var(--text);
         }
+        .menu-toggle {
+            display: none; /* Hidden by default on desktop */
+            background: none;
+            border: none;
+            color: var(--text);
+            cursor: pointer;
+            padding: 0;
+            margin-right: 15px;
+        }
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block; /* Show on mobile */
+            }
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                display: none;
+            }
+            .sidebar.open + .sidebar-overlay {
+                display: block;
+            }
+        }
         .header-actions {
             display: flex;
             gap: 12px;
@@ -660,10 +687,12 @@
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
-                left: -280px;
+                left: -280px; /* Hidden by default */
                 height: 100vh;
                 top: 0;
                 box-shadow: var(--shadow-lg);
+                background-color: var(--surface); /* Ensure it has a background */
+                z-index: 1000; /* Bring to front */
             }
             .sidebar.open {
                 left: 0;
@@ -672,7 +701,7 @@
                 margin-left: 0;
             }
             .bottom-nav {
-                display: flex;
+                display: none; /* Hide bottom nav */
             }
             .content {
                 padding: 20px 16px;
@@ -756,6 +785,13 @@
         </aside>
         <main class="main-content">
             <header class="header">
+                <button class="btn menu-toggle" id="menu-toggle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
                 <h2 id="page-title">My Tasks <span class="sync-status" id="sync-status"></span></h2>
                 <div class="header-actions">
                     <button class="btn" id="theme-toggle">
