@@ -25,6 +25,7 @@
     </script>
     <!-- Firebase CDN -->
     <script type="module">
+      import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
       // Firebase will be initialized in the main script below
     </script>
     <script type="module" src="/firebase-config.js"></script>
@@ -1318,6 +1319,27 @@
                     settings: appState.settings
                 }));
             }
+            if (appState.user) {
+                saveUserDataToFirestore();
+            }
+        }
+
+        async function saveUserDataToFirestore() {
+            if (!appState.user || !window.firebaseDb) return;
+            const userDocRef = window.firebaseDoc(window.firebaseDb, 'users', appState.user.uid);
+            try {
+                await window.firebaseSetDoc(userDocRef, {
+                    tasks: appState.tasks,
+                    notes: appState.notes,
+                    settings: appState.settings
+                }, { merge: true });
+                elements.syncStatus.classList.remove('syncing');
+                elements.syncStatus.classList.add('synced');
+            } catch (error) {
+                console.error('Error saving data to Firestore:', error);
+                elements.syncStatus.classList.remove('synced');
+                elements.syncStatus.classList.add('error');
+            }
         }
 
         function loadData() {
@@ -1337,10 +1359,56 @@
         }
 
         async function loadUserDataFromFirestore() {
-            if (!appState.user) return;
-            // In a real app, you'd fetch from Firestore
-            // For now, we keep local data and assume sync
-            elements.syncStatus.classList.add('synced');
+            if (!appState.user || !window.firebaseDb) return;
+            elements.syncStatus.classList.remove('synced');
+            elements.syncStatus.classList.add('syncing');
+            const userDocRef = window.firebaseDoc(window.firebaseDb, 'users', appState.user.uid);
+            try {
+                const docSnap = await window.firebaseGetDoc(userDocRef);
+                if (docSnap.exists()) {
+                    const firestoreData = docSnap.data();
+                    // Merge local guest data with Firestore data
+                    // For simplicity, Firestore data takes precedence, but local-only tasks/notes are uploaded
+                    const localData = JSON.parse(localStorage.getItem('taskerflow-guest') || '{}');
+
+                    const mergedTasks = [...firestoreData.tasks || []];
+                    const localTasks = localData.tasks || [];
+                    localTasks.forEach(localTask => {
+                        if (!mergedTasks.some(ft => ft.id === localTask.id)) {
+                            mergedTasks.push(localTask);
+                        }
+                    });
+
+                    const mergedNotes = [...firestoreData.notes || []];
+                    const localNotes = localData.notes || [];
+                    localNotes.forEach(localNote => {
+                        if (!mergedNotes.some(fn => fn.id === localNote.id)) {
+                            mergedNotes.push(localNote);
+                        }
+                    });
+
+                    appState.tasks = mergedTasks;
+                    appState.notes = mergedNotes;
+                    appState.settings = { ...appState.settings, ...firestoreData.settings };
+
+                    // Clear local guest data after merging
+                    localStorage.removeItem('taskerflow-guest');
+                    saveData(); // Save merged data to local storage and Firestore
+                } else {
+                    // If no Firestore data, upload current local data
+                    saveData();
+                }
+                elements.syncStatus.classList.remove('syncing');
+                elements.syncStatus.classList.add('synced');
+            } catch (error) {
+                console.error('Error loading data from Firestore:', error);
+                elements.syncStatus.classList.remove('syncing');
+                elements.syncStatus.classList.add('error');
+            }
+            renderTasks();
+            renderScheduledTasks();
+            renderNotes();
+            updateTaskCount();
         }
 
         function backupData() {
@@ -1443,48 +1511,54 @@
             const title = document.getElementById('task-title').value.trim();
             const message = document.getElementById('task-message').value.trim();
             const scheduleTime = document.getElementById('task-schedule').value;
-            if (!title || !message || !scheduleTime) {
-                showToast('Please fill all fields', 'error');
+            if (!title || !message) {
+                showToast('Title and message are required.', 'error');
                 return;
             }
             showLoading('task');
-            try {
-                const response = await fetch('/api/schedule-notification', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        message: message, 
-                        scheduleTime: new Date(scheduleTime).toString() 
-                    }),
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    const task = {
-                        id: Date.now().toString(),
-                        title: title,
-                        message: message,
-                        scheduleTime: scheduleTime,
-                        notificationId: result.notificationId,
-                        createdAt: new Date().toISOString(),
-                        uid: appState.user?.uid || 'guest',
-                        completed: false
-                    };
-                    appState.tasks.push(task);
-                    saveData();
-                    elements.taskForm.reset();
-                    showToast('Task scheduled successfully!', 'success');
-                    switchView('tasks');
-                    renderTasks();
-                    updateTaskCount();
-                } else {
-                    throw new Error(result.error || 'Failed to schedule notification');
+            let notificationId = null;
+            if (scheduleTime) {
+                try {
+                    const response = await fetch('/api/schedule-notification', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            message: message, 
+                            scheduleTime: new Date(scheduleTime).toString() 
+                        }),
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        notificationId = result.notificationId;
+                    } else {
+                        throw new Error(result.error || 'Failed to schedule notification');
+                    }
+                } catch (error) {
+                    console.error('Error scheduling notification:', error);
+                    showToast(`Error scheduling notification: ${error.message}`, 'error');
+                    hideLoading('task');
+                    return;
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                showToast(`Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading('task');
             }
+
+            const task = {
+                id: Date.now().toString(),
+                title: title,
+                message: message,
+                scheduleTime: scheduleTime || null,
+                notificationId: notificationId,
+                createdAt: new Date().toISOString(),
+                uid: appState.user?.uid || 'guest',
+                completed: false
+            };
+            appState.tasks.push(task);
+            saveData();
+            elements.taskForm.reset();
+            showToast('Task added successfully!', 'success');
+            switchView('tasks');
+            renderTasks();
+            updateTaskCount();
+            hideLoading('task');
         }
 
         async function handleSequenceSubmit(e) {
@@ -1624,23 +1698,36 @@
                 });
             });
 
-            // Add swipe-to-delete listeners
+            // Add swipe-to-delete and hold-to-edit listeners
             list.querySelectorAll('.task-item').forEach(item => {
                 let startX;
                 let currentX;
                 let isSwiping = false;
+                let longPressTimer;
                 const swipeThreshold = 80; // Pixels to swipe to trigger delete
+                const longPressDuration = 500; // Milliseconds for long press
 
                 item.addEventListener('touchstart', (e) => {
                     startX = e.touches[0].clientX;
-                    isSwiping = true;
+                    isSwiping = false;
                     item.style.transition = 'none'; // Disable transition during swipe
+
+                    // Start long press timer
+                    longPressTimer = setTimeout(() => {
+                        if (!isSwiping) {
+                            editTask(item.dataset.id); // Trigger edit on long press
+                        }
+                    }, longPressDuration);
                 });
 
                 item.addEventListener('touchmove', (e) => {
-                    if (!isSwiping) return;
                     currentX = e.touches[0].clientX;
                     const diff = currentX - startX;
+
+                    if (Math.abs(diff) > 10) { // If moved more than 10px, it's a swipe, cancel long press
+                        clearTimeout(longPressTimer);
+                        isSwiping = true;
+                    }
 
                     if (diff < 0) { // Swiping left
                         item.style.transform = `translateX(${Math.max(-swipeThreshold, diff)}px)`;
@@ -1650,7 +1737,7 @@
                 });
 
                 item.addEventListener('touchend', () => {
-                    isSwiping = false;
+                    clearTimeout(longPressTimer); // Clear long press timer on touchend
                     item.style.transition = ''; // Re-enable transition
                     const transformX = new WebKitCSSMatrix(window.getComputedStyle(item).transform).m41;
 
@@ -1687,12 +1774,23 @@
             list.innerHTML = scheduledTasks.map(task => {
                 const taskTime = new Date(task.scheduleTime);
                 return `
-                    <div class="task-item fade-in">
-                        <div class="task-info">
-                            <div class="task-title">${escapeHtml(task.title)}</div>
-                            <div class="task-time">${taskTime.toLocaleString()}</div>
+                    <div class="task-item fade-in" data-id="${task.id}">
+                        <div class="task-delete-background">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </div>
+                        <div class="task-main-info">
+                            <div class="task-info">
+                                <div class="task-title">${escapeHtml(task.title)}</div>
+                                <div class="task-time">${taskTime.toLocaleString()}</div>
+                            </div>
                         </div>
                         <div class="task-actions">
+                            <button class="task-action-btn" onclick="editTask('${task.id}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
                             <button class="task-action-btn" onclick="deleteTask('${task.id}')">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6"></polyline>
@@ -1705,6 +1803,64 @@
                     </div>
                 `;
             }).join('');
+
+            // Add swipe-to-delete and hold-to-edit listeners
+            list.querySelectorAll('.task-item').forEach(item => {
+                let startX;
+                let currentX;
+                let isSwiping = false;
+                let longPressTimer;
+                const swipeThreshold = 80; // Pixels to swipe to trigger delete
+                const longPressDuration = 500; // Milliseconds for long press
+
+                item.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    isSwiping = false;
+                    item.style.transition = 'none'; // Disable transition during swipe
+
+                    // Start long press timer
+                    longPressTimer = setTimeout(() => {
+                        if (!isSwiping) {
+                            editTask(item.dataset.id); // Trigger edit on long press
+                        }
+                    }, longPressDuration);
+                });
+
+                item.addEventListener('touchmove', (e) => {
+                    if (!isSwiping) return;
+                    currentX = e.touches[0].clientX;
+                    const diff = currentX - startX;
+
+                    if (Math.abs(diff) > 10) { // If moved more than 10px, it's a swipe, cancel long press
+                        clearTimeout(longPressTimer);
+                        isSwiping = true;
+                    }
+
+                    if (diff < 0) { // Swiping left
+                        item.style.transform = `translateX(${Math.max(-swipeThreshold, diff)}px)`;
+                    } else {
+                        item.style.transform = `translateX(0px)`;
+                    }
+                });
+
+                item.addEventListener('touchend', () => {
+                    clearTimeout(longPressTimer); // Clear long press timer on touchend
+                    item.style.transition = ''; // Re-enable transition
+                    const transformX = new WebKitCSSMatrix(window.getComputedStyle(item).transform).m41;
+
+                    if (transformX < -swipeThreshold / 2) { // Swiped enough to delete
+                        item.classList.add('swiping'); // Apply swiping class for final animation
+                        setTimeout(() => {
+                            deleteTask(item.dataset.id);
+                            item.style.transform = 'translateX(0)'; // Reset transform after deletion
+                            item.classList.remove('swiping');
+                        }, 300); // Match CSS transition duration
+                    } else {
+                        item.style.transform = 'translateX(0)'; // Snap back
+                        item.classList.remove('swiping');
+                    }
+                });
+            });
         }
 
         function renderNotes() {
