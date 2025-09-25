@@ -226,6 +226,62 @@
             align-items: center;
             transition: var(--transition);
             animation: fadeIn 0.3s ease;
+            position: relative; /* For swipe-to-delete */
+            overflow: hidden; /* For swipe-to-delete */
+        }
+        .task-item.task-glowing {
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.6); /* Glowing effect */
+            border-color: var(--primary);
+        }
+        .task-item.task-completed {
+            opacity: 0.6;
+            text-decoration: line-through;
+            background-color: var(--background);
+            border-color: var(--border);
+        }
+        .task-item.swiping {
+            transform: translateX(-80px); /* Adjust based on delete button width */
+        }
+        .task-delete-background {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 80px; /* Width of the delete button */
+            background-color: var(--error);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .task-item.swiping .task-delete-background {
+            transform: translateX(0);
+        }
+        .task-item.swiping .task-main-info, .task-item.swiping .task-actions {
+            transition: transform 0.3s ease;
+            transform: translateX(-80px);
+        }
+        .task-item.swiping .task-actions {
+            opacity: 0;
+        }
+        .task-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        .task-main-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+            cursor: pointer;
         }
         .task-item:hover {
             transform: translateY(-2px);
@@ -753,9 +809,8 @@
                                 <textarea id="task-message" class="form-control" placeholder="Enter notification message" required></textarea>
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="task-schedule">Schedule Time</label>
-                                <input type="datetime-local" id="task-schedule" class="form-control" required>
-                            </div>
+                                <label class="form-label" for="task-schedule">Schedule Time (Optional)</label>
+                                <input type="datetime-local" id="task-schedule" class="form-control">                            </div>
                             <button type="submit" class="btn btn-primary">
                                 <span id="submit-text">Schedule Task</span>
                                 <span id="submit-spinner" class="spinner" style="display: none; color: white;"></span>
@@ -1411,7 +1466,8 @@
                         scheduleTime: scheduleTime,
                         notificationId: result.notificationId,
                         createdAt: new Date().toISOString(),
-                        uid: appState.user?.uid || 'guest'
+                        uid: appState.user?.uid || 'guest',
+                        completed: false
                     };
                     appState.tasks.push(task);
                     saveData();
@@ -1471,7 +1527,8 @@
                             scheduleTime: taskTime.toISOString().slice(0, 16),
                             notificationId: result.notificationId,
                             createdAt: new Date().toISOString(),
-                            uid: appState.user?.uid || 'guest'
+                            uid: appState.user?.uid || 'guest',
+                            completed: false
                         };
                         appState.tasks.push(task);
                         scheduledTasks.push(task);
@@ -1496,9 +1553,20 @@
 
         function renderTasks() {
             const now = new Date();
-            const activeTasks = appState.tasks.filter(task => new Date(task.scheduleTime) > now);
+
+            // Separate tasks into categories
+            const completedTasks = appState.tasks.filter(task => task.completed);
+            const scheduledTasks = appState.tasks.filter(task => !task.completed && task.scheduleTime && new Date(task.scheduleTime) > now);
+            const unscheduledTasks = appState.tasks.filter(task => !task.completed && !task.scheduleTime);
+
+            // Sort scheduled tasks by upcoming time
+            scheduledTasks.sort((a, b) => new Date(a.scheduleTime) - new Date(b.scheduleTime));
+
+            // Combine all tasks in the desired order
+            const tasksToRender = [...scheduledTasks, ...unscheduledTasks, ...completedTasks];
+
             const list = elements.taskList;
-            if (activeTasks.length === 0) {
+            if (tasksToRender.length === 0) {
                 list.innerHTML = `
                     <div class="empty-state">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1512,13 +1580,21 @@
                 `;
                 return;
             }
-            list.innerHTML = activeTasks.map(task => {
-                const taskTime = new Date(task.scheduleTime);
+            list.innerHTML = tasksToRender.map(task => {
+                const taskTime = task.scheduleTime ? new Date(task.scheduleTime) : null;
+                const isScheduled = taskTime && taskTime > now;
+                const taskClass = `task-item fade-in ${task.completed ? 'task-completed' : ''} ${!task.completed && isScheduled ? 'task-glowing' : ''}`;
                 return `
-                    <div class="task-item fade-in">
-                        <div class="task-info">
-                            <div class="task-title">${escapeHtml(task.title)}</div>
-                            <div class="task-time">${taskTime.toLocaleString()}</div>
+                    <div class="${taskClass}" data-id="${task.id}">
+                        <div class="task-delete-background">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </div>
+                        <div class="task-main-info">
+                            <input type="checkbox" class="task-checkbox" data-id="${task.id}" ${task.completed ? 'checked' : ''}>
+                            <div class="task-info">
+                                <div class="task-title">${escapeHtml(task.title)}</div>
+                                ${taskTime ? `<div class="task-time">${taskTime.toLocaleString()}</div>` : ''}
+                            </div>
                         </div>
                         <div class="task-actions">
                             <button class="task-action-btn" onclick="editTask('${task.id}')">
@@ -1539,12 +1615,64 @@
                     </div>
                 `;
             }).join('');
+
+            // Add event listeners for checkboxes
+            list.querySelectorAll('.task-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const taskId = e.target.dataset.id;
+                    toggleTaskCompletion(taskId);
+                });
+            });
+
+            // Add swipe-to-delete listeners
+            list.querySelectorAll('.task-item').forEach(item => {
+                let startX;
+                let currentX;
+                let isSwiping = false;
+                const swipeThreshold = 80; // Pixels to swipe to trigger delete
+
+                item.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    isSwiping = true;
+                    item.style.transition = 'none'; // Disable transition during swipe
+                });
+
+                item.addEventListener('touchmove', (e) => {
+                    if (!isSwiping) return;
+                    currentX = e.touches[0].clientX;
+                    const diff = currentX - startX;
+
+                    if (diff < 0) { // Swiping left
+                        item.style.transform = `translateX(${Math.max(-swipeThreshold, diff)}px)`;
+                    } else {
+                        item.style.transform = `translateX(0px)`;
+                    }
+                });
+
+                item.addEventListener('touchend', () => {
+                    isSwiping = false;
+                    item.style.transition = ''; // Re-enable transition
+                    const transformX = new WebKitCSSMatrix(window.getComputedStyle(item).transform).m41;
+
+                    if (transformX < -swipeThreshold / 2) { // Swiped enough to delete
+                        item.classList.add('swiping'); // Apply swiping class for final animation
+                        setTimeout(() => {
+                            deleteTask(item.dataset.id);
+                            item.style.transform = 'translateX(0)'; // Reset transform after deletion
+                            item.classList.remove('swiping');
+                        }, 300); // Match CSS transition duration
+                    } else {
+                        item.style.transform = 'translateX(0)'; // Snap back
+                        item.classList.remove('swiping');
+                    }
+                });
+            });
         }
 
         function renderScheduledTasks() {
-            const pastTasks = appState.tasks.filter(task => new Date(task.scheduleTime) <= new Date());
+            const scheduledTasks = appState.tasks.filter(task => task.scheduleTime);
             const list = elements.scheduledList;
-            if (pastTasks.length === 0) {
+            if (scheduledTasks.length === 0) {
                 list.innerHTML = `
                     <div class="empty-state">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1556,7 +1684,7 @@
                 `;
                 return;
             }
-            list.innerHTML = pastTasks.map(task => {
+            list.innerHTML = scheduledTasks.map(task => {
                 const taskTime = new Date(task.scheduleTime);
                 return `
                     <div class="task-item fade-in">
@@ -1721,6 +1849,17 @@
                     elements.toastUndo.style.display = 'none';
                 }
             }, 5000);
+        }
+
+        function toggleTaskCompletion(id) {
+            const taskIndex = appState.tasks.findIndex(task => task.id === id);
+            if (taskIndex > -1) {
+                appState.tasks[taskIndex].completed = !appState.tasks[taskIndex].completed;
+                saveData();
+                renderTasks();
+                renderScheduledTasks();
+                updateTaskCount();
+            }
         }
 
         function updateTaskCount() {
