@@ -1,6 +1,6 @@
 // /firebase-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 import { getFirestore, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -23,3 +23,4 @@ window.firebaseApp = app;
 window.firebaseAuth = auth;
 window.firebaseDb = db;
 window.firebaseOnAuthStateChanged = onAuthStateChanged;
+window.firebaseSignOut = signOut;

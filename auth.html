@@ -7,7 +7,7 @@
   <meta name="description" content="Sign in to TaskerFlow to sync your tasks, sequences, and notes across devices.">
   <meta name="theme-color" content="#4f46e5">
   <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <style>
     :root {
       --primary: #4f46e5;
@@ -363,13 +363,7 @@
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        if (!user.emailVerified) {
-          await sendEmailVerification(user);
-          showToast('Verification email sent! Please verify your email.', 'success');
-          setTimeout(() => window.location.href = '/', 3000);
-        } else {
-          window.location.href = '/';
-        }
+        window.location.href = '/';
       } catch (error) {
         document.getElementById('login-error').textContent = error.message;
         showToast('Login failed: ' + error.message, 'error');
@@ -394,10 +388,8 @@
       }
 
       try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await sendEmailVerification(userCredential.user);
-        document.getElementById('signup-success').textContent = "Account created! Verification email sent.";
-        showToast('Account created! Please verify your email.', 'success');
+        document.getElementById('signup-success').textContent = "Account created!";
+        showToast('Account created!', 'success');
         setTimeout(() => showForm('login-form'), 3000);
       } catch (error) {
         document.getElementById('signup-error').textContent = error.message;

@@ -12,11 +12,16 @@
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(function(OneSignal) {
-        OneSignal.init({
-          appId: "ead62052-c065-4208-af7f-26372838c61d",
+      // Temporarily disable OneSignal initialization during local development
+      // if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      //   console.warn('OneSignal initialization skipped for local development.');
+      // } else {
+        OneSignalDeferred.push(function(OneSignal) {
+          OneSignal.init({
+            appId: "ead62052-c065-4208-af7f-26372838c61d",
+          });
         });
-      });
+      // }
     </script>
     <!-- Firebase CDN -->
     <script type="module">
@@ -486,6 +491,81 @@
         .interval-input span {
             color: var(--text-secondary);
         }
+        /* Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(79,70,229,0.4);
+            cursor: pointer;
+            z-index: 1000;
+            transition: var(--transition);
+        }
+        .fab:hover {
+            transform: scale(1.05);
+            background: var(--primary-dark);
+        }
+
+        /* FAB Menu */
+        .fab-menu {
+            position: fixed;
+            bottom: 90px; /* Above the FAB */
+            right: 24px;
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            padding: 10px 0;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+        }
+        .fab-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .fab-menu-item {
+            background: none;
+            border: none;
+            color: var(--text);
+            padding: 10px 20px;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            transition: background-color 0.2s ease;
+            width: 100%;
+        }
+        .fab-menu-item:hover {
+            background-color: var(--border);
+        }
+        .fab-menu-item svg {
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .fab {
+                bottom: 80px; /* Adjust for bottom nav */
+            }
+            .fab-menu {
+                bottom: 140px; /* Adjust for bottom nav */
+            }
+        }
         /* Sync Status Dot */
         .sync-status {
             display: inline-block;
@@ -848,41 +928,48 @@
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
-                                                                 <div class="form-group">
-                                                                     <label class="form-label">Alarm Sound</label>
-                                                                     <select class="form-control" id="alarm-sound">
-                                                                         <option value="default">Default</option>
-                                                                         <option value="gentle">Gentle</option>
-                                                                         <option value="urgent">Urgent</option>
-                                                                     </select>
-                                                                 </div>
-                                                             </div>
-                                                             <div class="setting-item">
-                                                                 <div class="setting-header">
-                                                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                                                                     </svg>
-                                                                     <h4 class="setting-title">Account Security</h4>
-                                                                 </div>
-                                                                 <form id="password-change-form">
-                                                                     <div class="form-group">
-                                                                         <label class="form-label" for="current-password">Current Password</label>
-                                                                         <input type="password" id="current-password" class="form-control" placeholder="Enter current password" required>
-                                                                     </div>
-                                                                     <div class="form-group">
-                                                                         <label class="form-label" for="new-password">New Password</label>
-                                                                         <input type="password" id="new-password" class="form-control" placeholder="Enter new password" required>
-                                                                     </div>
-                                                                     <div class="form-group">
-                                                                         <label class="form-label" for="confirm-new-password">Confirm New Password</label>
-                                                                         <input type="password" id="confirm-new-password" class="form-control" placeholder="Confirm new password" required>
-                                                                     </div>
-                                                                     <button type="submit" class="btn btn-primary">Change Password</button>
-                                                                 </form>
-                                                             </div>
-                                                         </div>
-                                                     </div>
-                                                 </div>            </div>
+                                <div class="form-group">
+                                    <label class="form-label">Alarm Sound</label>
+                                    <select class="form-control" id="alarm-sound">
+                                    <option value="default">Default</option>
+                                    <option value="gentle">Gentle</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                                <h4 class="setting-title">Account Information</h4>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Logged in as:</label>
+                                <p id="logged-in-email" style="font-weight: 600; color: var(--primary);"></p>
+                            </div>
+                            <div class="form-group">
+                                <form id="password-change-form">
+                                    <div class="form-group">
+                                        <label class="form-label" for="current-password">Current Password</label>
+                                        <input type="password" id="current-password" class="form-control" placeholder="Enter current password" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="new-password">New Password</label>
+                                        <input type="password" id="new-password" class="form-control" placeholder="Enter new password" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="confirm-new-password">Confirm New Password</label>
+                                        <input type="password" id="confirm-new-password" class="form-control" placeholder="Confirm new password" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Change Password</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
     <!-- Bottom Navigation -->
@@ -926,6 +1013,23 @@
             <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
     </div>
+
+    <!-- FAB Menu -->
+    <div class="fab-menu" id="fab-menu">
+        <button class="fab-menu-item" id="fab-add-task">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <span>Add Task</span>
+        </button>
+        <button class="fab-menu-item" id="fab-add-sequence">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h8M4 16h8M4 8h16"></path></svg>
+            <span>Add Sequence</span>
+        </button>
+        <button class="fab-menu-item" id="fab-add-note">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            <span>Add Note</span>
+        </button>
+    </div>
+
     <!-- Toast -->
     <div class="toast" id="toast">
         <div id="toast-icon"></div>
@@ -982,12 +1086,17 @@
             authBtn: document.getElementById('auth-btn'),
             syncStatus: document.getElementById('sync-status'),
             fab: document.getElementById('fab'),
+            fabMenu: document.getElementById('fab-menu'),
+            fabAddTask: document.getElementById('fab-add-task'),
+            fabAddSequence: document.getElementById('fab-add-sequence'),
+            fabAddNote: document.getElementById('fab-add-note'),
             backupBtn: document.getElementById('backup-data'),
             restoreBtn: document.getElementById('restore-data'),
             passwordChangeForm: document.getElementById('password-change-form'),
             currentPasswordInput: document.getElementById('current-password'),
             newPasswordInput: document.getElementById('new-password'),
-            confirmNewPasswordInput: document.getElementById('confirm-new-password')
+            confirmNewPasswordInput: document.getElementById('confirm-new-password'),
+            loggedInEmailDisplay: document.getElementById('logged-in-email')
         };
 
         // Firebase will be loaded via CDN
@@ -1003,28 +1112,10 @@
             document.getElementById('task-schedule').min = minDateTime;
             document.getElementById('sequence-start').min = minDateTime;
 
-            // Load Firebase
-            const [{ initializeApp }, { getAuth, onAuthStateChanged, signOut }, { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, enableIndexedDbPersistence }] = 
-                await Promise.all([
-                    import("https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js"),
-                    import("https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js"),
-                    import("https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js")
-                ]);
-
-            const firebaseConfig = {
-                apiKey: "AIzaSyC1Ijko3EMVffxtGy3EJ5IGmoAD7KPhEnY",
-                authDomain: "taskerflow-77fac.firebaseapp.com",
-                projectId: "taskerflow-77fac",
-                storageBucket: "taskerflow-77fac.firebasestorage.app",
-                messagingSenderId: "278341339145",
-                appId: "1:278341339145:web:56e71b8c06ebf63c2750d8",
-                measurementId: "G-F9FMHVG0BY"
-            };
-
-            firebaseApp = initializeApp(firebaseConfig);
-            firebaseAuth = getAuth(firebaseApp);
-            firebaseDb = getFirestore(firebaseApp);
-            enableIndexedDbPersistence(firebaseDb).catch(console.warn);
+            // Use globally exposed Firebase instances from firebase-config.js
+            firebaseApp = window.firebaseApp;
+            firebaseAuth = window.firebaseAuth;
+            firebaseDb = window.firebaseDb;
 
             // Load data
             loadData();
@@ -1036,7 +1127,7 @@
             renderNotes(); // New function to render notes
 
             // Auth state listener
-            onAuthStateChanged(firebaseAuth, (user) => {
+            window.firebaseOnAuthStateChanged(firebaseAuth, (user) => {
                 appState.user = user;
                 updateAuthUI();
                 if (user) {
@@ -1055,15 +1146,36 @@
                 });
             });
 
-            // Floating Action Button
-            elements.fab.addEventListener('click', () => {
-                const current = getCurrentView();
-                if (current === 'tasks') switchView('addTask');
-                else if (current === 'sequence') elements.sequenceForm.dispatchEvent(new Event('submit'));
-                else if (current === 'notepad') createNote(); // Call createNote for notepad view
+            elements.addTaskBtn?.addEventListener('click', () => switchView('addTask'));
+            // FAB and FAB Menu
+            elements.fab.addEventListener('click', (event) => {
+                event.stopPropagation();
+                elements.fabMenu.classList.toggle('show');
             });
 
-            elements.addTaskBtn?.addEventListener('click', () => switchView('addTask'));
+            elements.fabAddTask.addEventListener('click', () => {
+                switchView('addTask');
+                elements.fabMenu.classList.remove('show');
+            });
+
+            elements.fabAddSequence.addEventListener('click', () => {
+                switchView('sequence');
+                elements.fabMenu.classList.remove('show');
+            });
+
+            elements.fabAddNote.addEventListener('click', () => {
+                switchView('notepad');
+                createNote();
+                elements.fabMenu.classList.remove('show');
+            });
+
+            // Close FAB menu when clicking outside
+            document.addEventListener('click', (event) => {
+                if (!elements.fab.contains(event.target) && !elements.fabMenu.contains(event.target)) {
+                    elements.fabMenu.classList.remove('show');
+                }
+            });
+
             elements.backToTasksBtn?.addEventListener('click', () => switchView('tasks'));
             elements.taskForm.addEventListener('submit', handleTaskSubmit);
             elements.sequenceForm.addEventListener('submit', handleSequenceSubmit);
@@ -1081,13 +1193,14 @@
 
             elements.authBtn.addEventListener('click', () => {
                 if (appState.user) {
-                    signOut(firebaseAuth).then(() => {
+                    window.firebaseSignOut(firebaseAuth).then(() => {
                         localStorage.clear(); // Clear local guest data
                         appState.tasks = [];
                         appState.notes = []; // Clear notes instead of notepadContent
                         renderTasks();
                         renderScheduledTasks();
                         renderNotes(); // Re-render notes after clearing
+                        window.location.href = '/auth.html';
                     });
                 } else {
                     window.location.href = '/auth.html';
@@ -1134,9 +1247,11 @@
             if (appState.user) {
                 elements.authBtn.textContent = 'Logout';
                 elements.authBtn.style.backgroundColor = '#ef4444';
+                elements.loggedInEmailDisplay.textContent = appState.user.email;
             } else {
                 elements.authBtn.textContent = 'Login';
                 elements.authBtn.style.backgroundColor = '';
+                elements.loggedInEmailDisplay.textContent = 'Not logged in';
             }
         }
 
